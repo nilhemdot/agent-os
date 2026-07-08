@@ -1,0 +1,34 @@
+{
+  "_help": "Copy this file to ~/.agentic-os/config.json (or to agentic-os.config.json in the project root) and edit the paths to match your machine. Anything you leave out auto-detects or falls back to sensible defaults.",
+
+  "claude": null,
+  "openclaw": null,
+  "hermes": null,
+  "_paths_note": "Leave as null to auto-detect via `which`. Or paste the full path you get from `which claude` etc.",
+
+  "nlmBin": null,
+  "_nlm_note": "Path to the NotebookLM 'notebooklm-mcp' binary (powers the Notebook tab). Leave null to auto-detect. Install with: uv tool install notebooklm-mcp-cli  — then run: nlm login. See install/15-NOTEBOOKLM.md.",
+
+  "vaultRoot": null,
+  "_vault_note": "Full path to your Obsidian vault. Leave null and we'll try ~/Documents/Obsidian Vault, ~/Obsidian, ~/Obsidian Vault.",
+
+  "userName": "You",
+  "_username_note": "Your display name, shown in the Agent Room etc. Defaults to \"You\" so a fresh install is never personalised to someone else. Set it to your first name if you like. (Also settable via AGENTIC_OS_USER_NAME.)",
+
+  "_voice_note": "To change the Hermes/Jarvis voice: connect your ElevenLabs key, then set AGENTIC_OS_TTS_VOICE=<your voice id> (env or ~/.hermes/profiles/main/.env), or pick a voice in Video → Director. See install/3-JARVIS-VOICE.md.",
+
+  "openclawAgent": "main",
+  "_agent_note": "Which openclaw agent to chat with by default (main, personal, marketing, etc.). Run `openclaw agents list` to see yours.",
+
+  "goalCategories": ["Health", "Personal", "Work", "Learning", "Side Project"],
+
+  "_roomAgents_note": "ADVANCED — repoint any AI Agent Mastermind (/room) agent without editing code. Keyed by agent id: claude, hermes, gemini, codex, openclaw, glm, fcc. provider can be 'openrouter' (default), 'ollama' (local), or 'openai' (any OpenAI-compatible endpoint via baseUrl + apiKeyEnv — e.g. your z.ai GLM key, Sakana, LM Studio). Leave the whole thing out to use the defaults.",
+  "_roomAgents_example": {
+    "glm": { "provider": "openai", "baseUrl": "https://api.z.ai/api/paas/v4", "apiKeyEnv": "GLM_API_KEY", "model": "glm-4.6" },
+    "gemini": { "model": "google/gemini-3-pro-preview" },
+    "codex": { "provider": "ollama" }
+  },
+
+  "locationLabel": "Local",
+  "_location_note": "Shown in the top-bar timestamp. e.g. \"Bangkok\", \"London\", or just \"Local\"."
+}

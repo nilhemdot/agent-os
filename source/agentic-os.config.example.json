@@ -1,0 +1,19 @@
+{
+  "_help": "Copy this file to ~/.agentic-os/config.json (or to agentic-os.config.json in the project root) and edit the paths to match your machine. Anything you leave out auto-detects or falls back to sensible defaults.",
+
+  "claude": null,
+  "openclaw": null,
+  "hermes": null,
+  "_paths_note": "Leave as null to auto-detect via `which`. Or paste the full path you get from `which claude` etc.",
+
+  "vaultRoot": null,
+  "_vault_note": "Full path to your Obsidian vault. Leave null and we'll try ~/Documents/Obsidian Vault, ~/Obsidian, ~/Obsidian Vault.",
+
+  "openclawAgent": "main",
+  "_agent_note": "Which openclaw agent to chat with by default (main, julian, marketing, etc.). Run `openclaw agents list` to see yours.",
+
+  "goalCategories": ["Health", "Personal", "Work", "Learning", "Side Project"],
+
+  "locationLabel": "Local",
+  "_location_note": "Shown in the top-bar timestamp. e.g. \"Bangkok\", \"London\", or just \"Local\"."
+}

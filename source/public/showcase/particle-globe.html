@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Particle Galaxy</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #0a0612; overflow: hidden; cursor: grab;
+  }
+  body.dragging { cursor: grabbing; }
+  #c { display: block; width: 100vw; height: 100vh; }
+  #hint {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    font: 11px/1 -apple-system, system-ui, sans-serif; letter-spacing: 2px;
+    color: rgba(167,139,250,0.18); pointer-events: none; user-select: none;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">drag &middot; scroll</div>
+<script>
+(function () {
+  "use strict";
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d", { alpha: false });
+  let W = 0, H = 0, DPR = 1, CX = 0, CY = 0;
+
+  // Palette stops (cyan -> violet -> magenta -> gold -> emerald), each [r,g,b]
+  const PAL = [
+    [34, 211, 238],   // cyan #22d3ee
+    [167, 139, 250],  // violet #a78bfa
+    [244, 114, 182],  // magenta #f472b6
+    [212, 165, 116],  // gold #d4a574
+    [90, 184, 150]    // emerald #5ab896
+  ];
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  // Sample palette at position p in [0,1], shimmer-shifted by phase
+  function paletteAt(p, phase) {
+    let q = (p + phase) % 1; if (q < 0) q += 1;
+    const f = q * (PAL.length - 1);
+    let i = Math.floor(f);
+    const t = f - i;
+    const a = PAL[i], b = PAL[Math.min(i + 1, PAL.length - 1)];
+    return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+  }
+
+  // ---- Build particles: a glowing sphere shell + a swirling spiral disk ----
+  const SPHERE_N = 1800;
+  const DISK_N = 2600;
+  const points = [];   // {x,y,z, base, sz, hue}
+  const stars = [];    // background flat starfield
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function buildSphere() {
+    const R = 230;
+    for (let i = 0; i < SPHERE_N; i++) {
+      // Fibonacci sphere for even distribution
+      const k = i + 0.5;
+      const phi = Math.acos(1 - 2 * k / SPHERE_N);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * k;
+      const jitter = rand(0.94, 1.0);
+      const x = Math.cos(theta) * Math.sin(phi) * R * jitter;
+      const y = Math.cos(phi) * R * jitter;
+      const z = Math.sin(theta) * Math.sin(phi) * R * jitter;
+      // colour by vertical band so the gradient sweeps top->bottom
+      const hue = (y + R) / (2 * R);
+      points.push({ x, y, z, base: rand(0.55, 1.0), sz: rand(0.9, 1.7), hue });
+    }
+  }
+
+  function buildDisk() {
+    const ARMS = 4;
+    const MAXR = 360;
+    const TWIST = 3.4;     // how tightly the arms wind
+    for (let i = 0; i < DISK_N; i++) {
+      // bias toward outer radius for a fuller galaxy look
+      const rr = Math.pow(Math.random(), 0.5);
+      const radius = 70 + rr * MAXR;
+      const arm = Math.floor(Math.random() * ARMS) / ARMS * Math.PI * 2;
+      // spread perpendicular to the arm, tighter near the core
+      const spread = rand(-0.32, 0.32) * (1 - rr * 0.55);
+      const angle = arm + radius / MAXR * TWIST + spread;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      // disk thickness, thinner at the rim
+      const y = rand(-1, 1) * (26 * (1 - rr * 0.7));
+      const hue = (radius - 70) / MAXR;      // gradient runs inner->outer
+      points.push({ x, y, z, base: rand(0.5, 1.0), sz: rand(0.8, 1.8), hue });
+    }
+  }
+
+  function buildStars() {
+    const n = 220;
+    for (let i = 0; i < n; i++) {
+      stars.push({
+        x: Math.random(), y: Math.random(),
+        b: rand(0.04, 0.22), s: rand(0.5, 1.4),
+        tw: rand(0, Math.PI * 2), tws: rand(0.4, 1.6)
+      });
+    }
+  }
+
+  buildSphere();
+  buildDisk();
+  buildStars();
+
+  // ---- Interaction: drag to spin (inertia), scroll/pinch to zoom ----
+  let rotX = 0.5, rotY = 0;
+  let velX = 0, velY = 0.0016;   // gentle autospin baseline
+  let zoom = 1;
+  let dragging = false, lastX = 0, lastY = 0;
+
+  function onDown(x, y) {
+    dragging = true; lastX = x; lastY = y;
+    document.body.classList.add("dragging");
+  }
+  function onMove(x, y) {
+    if (!dragging) return;
+    const dx = x - lastX, dy = y - lastY;
+    lastX = x; lastY = y;
+    velY = dx * 0.00045;
+    velX = dy * 0.00045;
+    rotY += dx * 0.005;
+    rotX += dy * 0.005;
+  }
+  function onUp() {
+    dragging = false;
+    document.body.classList.remove("dragging");
+  }
+
+  canvas.addEventListener("mousedown", e => onDown(e.clientX, e.clientY));
+  window.addEventListener("mousemove", e => onMove(e.clientX, e.clientY));
+  window.addEventListener("mouseup", onUp);
+
+  let pinchDist = 0;
+  canvas.addEventListener("touchstart", e => {
+    if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY);
+    else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchDist = Math.hypot(dx, dy);
+    }
+  }, { passive: true });
+  canvas.addEventListener("touchmove", e => {
+    if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY);
+    else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const d = Math.hypot(dx, dy);
+      if (pinchDist) zoom *= d / pinchDist;
+      zoom = Math.max(0.45, Math.min(2.6, zoom));
+      pinchDist = d;
+    }
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener("touchend", onUp);
+
+  canvas.addEventListener("wheel", e => {
+    zoom *= Math.exp(-e.deltaY * 0.0011);
+    zoom = Math.max(0.45, Math.min(2.6, zoom));
+    e.preventDefault();
+  }, { passive: false });
+
+  // ---- Resize ----
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    CX = W / 2; CY = H / 2;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // ---- Render loop ----
+  const FOV = 620;
+  let t = 0;
+  // reusable projected buffer to avoid GC churn
+  const proj = new Array(points.length);
+  for (let i = 0; i < points.length; i++) proj[i] = { sx: 0, sy: 0, scale: 0, depth: 0, p: points[i] };
+
+  function frame() {
+    t += 0.016;
+
+    // inertia + autospin damping
+    if (!dragging) {
+      velX *= 0.95; velY *= 0.95;
+      // ease back toward a slow constant drift
+      velY += (0.0016 - velY) * 0.012;
+    }
+    rotX += velX; rotY += velY;
+    // clamp vertical tilt so it never flips fully
+    if (rotX > 1.2) rotX = 1.2; if (rotX < -1.2) rotX = -1.2;
+
+    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+    const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+    const shimmer = t * 0.04;
+    const baseScale = zoom;
+
+    // --- background: near-black wash + faint starfield ---
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#0a0612";
+    ctx.fillRect(0, 0, W, H);
+
+    // subtle radial vignette toward centre for depth
+    const vg = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H) * 0.7);
+    vg.addColorStop(0, "rgba(30,18,48,0.55)");
+    vg.addColorStop(1, "rgba(10,6,18,0)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
+      const tw = 0.6 + 0.4 * Math.sin(t * s.tws + s.tw);
+      ctx.fillStyle = "rgba(200,210,255," + (s.b * tw).toFixed(3) + ")";
+      ctx.fillRect(s.x * W, s.y * H, s.s, s.s);
+    }
+
+    // --- project all points ---
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      // rotate around Y then X
+      let x = p.x, y = p.y, z = p.z;
+      let x1 = x * cosY - z * sinY;
+      let z1 = x * sinY + z * cosY;
+      let y2 = y * cosX - z1 * sinX;
+      let z2 = y * sinX + z1 * cosX;
+      const persp = FOV / (FOV + z2);
+      const o = proj[i];
+      o.sx = CX + x1 * persp * baseScale;
+      o.sy = CY + y2 * persp * baseScale;
+      o.scale = persp * baseScale;
+      o.depth = z2;
+    }
+
+    // sort back-to-front so nearer (brighter/bigger) points draw on top
+    proj.sort((a, b) => b.depth - a.depth);
+
+    // --- glowing core at centre ---
+    const coreR = 150 * baseScale;
+    const corePulse = 0.85 + 0.15 * Math.sin(t * 0.8);
+    const cg = ctx.createRadialGradient(CX, CY, 0, CX, CY, coreR);
+    const cc = paletteAt(0.15 + 0.1 * Math.sin(t * 0.3), shimmer);
+    cg.addColorStop(0, "rgba(" + (cc[0] | 0) + "," + (cc[1] | 0) + "," + (cc[2] | 0) + "," + (0.55 * corePulse).toFixed(3) + ")");
+    cg.addColorStop(0.4, "rgba(" + (cc[0] | 0) + "," + (cc[1] | 0) + "," + (cc[2] | 0) + ",0.12)");
+    cg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = cg;
+    ctx.fillRect(CX - coreR, CY - coreR, coreR * 2, coreR * 2);
+
+    // --- draw particles (additive) ---
+    for (let i = 0; i < proj.length; i++) {
+      const o = proj[i];
+      const p = o.p;
+      // depth normalised: far (-) dim/small, near (+) bright/big
+      const dn = (o.depth + 420) / 840;        // ~0..1
+      const dd = Math.max(0.05, Math.min(1, dn));
+      const radius = p.sz * o.scale * (0.5 + dd * 1.1);
+      if (radius < 0.15) continue;
+      const col = paletteAt(p.hue, shimmer);
+      const alpha = p.base * (0.18 + dd * 0.82);
+      const r = col[0] | 0, g = col[1] | 0, b = col[2] | 0;
+
+      // soft bloom halo for nearer/brighter points
+      if (dd > 0.45 && radius > 0.9) {
+        const hr = radius * 3.4;
+        const hg = ctx.createRadialGradient(o.sx, o.sy, 0, o.sx, o.sy, hr);
+        hg.addColorStop(0, "rgba(" + r + "," + g + "," + b + "," + (alpha * 0.32).toFixed(3) + ")");
+        hg.addColorStop(1, "rgba(" + r + "," + g + "," + b + ",0)");
+        ctx.fillStyle = hg;
+        ctx.fillRect(o.sx - hr, o.sy - hr, hr * 2, hr * 2);
+      }
+
+      // bright core dot
+      ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + alpha.toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.arc(o.sx, o.sy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

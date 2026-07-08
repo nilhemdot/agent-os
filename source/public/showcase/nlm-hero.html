@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nebula</title>
+<style>
+  :root{
+    --bg:#0a0612; --cyan:#22d3ee; --magenta:#f472b6;
+    --violet:#a78bfa; --gold:#d4a574; --emerald:#5ab896;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--bg)}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:#fff;-webkit-font-smoothing:antialiased;
+  }
+  #stage{position:fixed;inset:0;perspective:1400px}
+
+  /* (1) flowing gradient mesh */
+  .mesh{position:absolute;inset:-25%;filter:blur(70px);opacity:.85;
+    animation:meshShift 26s ease-in-out infinite alternate;will-change:transform,filter}
+  .blob{position:absolute;border-radius:50%;mix-blend-mode:screen;
+    animation:float 18s ease-in-out infinite}
+  .b1{width:46vw;height:46vw;left:-6vw;top:-8vw;background:radial-gradient(circle,var(--cyan),transparent 65%)}
+  .b2{width:42vw;height:42vw;right:-8vw;top:2vw;background:radial-gradient(circle,var(--magenta),transparent 65%);animation-delay:-4s}
+  .b3{width:50vw;height:50vw;left:18vw;bottom:-16vw;background:radial-gradient(circle,var(--violet),transparent 65%);animation-delay:-8s}
+  .b4{width:34vw;height:34vw;right:8vw;bottom:-6vw;background:radial-gradient(circle,var(--emerald),transparent 65%);animation-delay:-12s}
+  .b5{width:30vw;height:30vw;left:32vw;top:8vw;background:radial-gradient(circle,var(--gold),transparent 65%);animation-delay:-6s}
+  @keyframes meshShift{0%{filter:blur(70px) hue-rotate(0deg)}100%{filter:blur(90px) hue-rotate(50deg)}}
+  @keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(4vw,-3vw) scale(1.08)}66%{transform:translate(-3vw,4vw) scale(.94)}}
+
+  /* (2) constellation canvas */
+  #constellation{position:absolute;inset:0;z-index:2}
+
+  /* (3) glowing centerpiece orb + rings */
+  .core{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:3;
+    width:340px;height:340px;pointer-events:none;
+    opacity:0;animation:coreIn 1.6s cubic-bezier(.2,.8,.2,1) .5s forwards}
+  @keyframes coreIn{from{opacity:0;transform:translate(-50%,-50%) scale(.6)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+  .orb{position:absolute;inset:28%;border-radius:50%;
+    background:radial-gradient(circle at 38% 34%,#fff,var(--cyan) 34%,var(--violet) 72%,transparent 80%);
+    box-shadow:0 0 70px 16px rgba(34,211,238,.5),0 0 140px 40px rgba(167,139,250,.35),inset 0 0 40px rgba(255,255,255,.4);
+    animation:pulse 4.5s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.09);filter:brightness(1.25)}}
+  .ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent}
+  .r1{border-top-color:var(--cyan);border-right-color:var(--violet);animation:spin 9s linear infinite;box-shadow:0 0 26px rgba(34,211,238,.5)}
+  .r2{inset:9%;border-bottom-color:var(--magenta);border-left-color:var(--gold);animation:spin 14s linear reverse infinite;box-shadow:0 0 22px rgba(244,114,182,.5)}
+  .r3{inset:18%;border-top-color:var(--emerald);border-left-color:var(--cyan);animation:spin 20s linear infinite;box-shadow:0 0 18px rgba(90,184,182,.4)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* (4) glassmorphism floating cards */
+  .cards{position:absolute;inset:0;z-index:4;transform-style:preserve-3d}
+  .card{position:absolute;border-radius:20px;
+    background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.03));
+    border:1px solid rgba(255,255,255,.18);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+    box-shadow:0 12px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.25);
+    padding:16px 18px;opacity:0;will-change:transform;
+    animation:cardIn 1.1s cubic-bezier(.2,.8,.2,1) forwards}
+  .card .dot{width:34px;height:34px;border-radius:11px;margin-bottom:10px;
+    box-shadow:0 0 22px currentColor}
+  .card .l1{height:8px;width:74px;border-radius:6px;background:rgba(255,255,255,.55);margin-bottom:7px}
+  .card .l2{height:7px;width:48px;border-radius:6px;background:rgba(255,255,255,.28)}
+  .c1{left:9%;top:24%;animation-delay:.7s}  .c1 .dot{background:var(--cyan);color:var(--cyan)}
+  .c2{right:9%;top:20%;animation-delay:.9s}  .c2 .dot{background:var(--magenta);color:var(--magenta)}
+  .c3{left:13%;bottom:18%;animation-delay:1.1s} .c3 .dot{background:var(--emerald);color:var(--emerald)}
+  .c4{right:12%;bottom:22%;animation-delay:1.3s} .c4 .dot{background:var(--gold);color:var(--gold)}
+  @keyframes cardIn{to{opacity:1}}
+
+  /* (5) copy + CTA */
+  .hero{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;
+    text-align:center;width:min(90vw,720px);pointer-events:none}
+  .badge{display:inline-block;font-size:13px;letter-spacing:.32em;text-transform:uppercase;
+    color:rgba(255,255,255,.7);padding:7px 16px;border-radius:30px;margin-bottom:24px;
+    border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    opacity:0;animation:up 1s ease 1.4s forwards}
+  h1{font-size:clamp(40px,7vw,86px);font-weight:800;line-height:1.04;letter-spacing:-.02em;
+    margin-bottom:22px;opacity:0;animation:up 1.1s cubic-bezier(.2,.8,.2,1) 1.55s forwards}
+  h1 .grad{background:linear-gradient(110deg,var(--cyan),var(--violet) 40%,var(--magenta) 70%,var(--gold));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    background-size:200% auto;animation:flow 7s linear infinite}
+  @keyframes flow{to{background-position:200% center}}
+  .sub{font-size:clamp(15px,1.7vw,19px);color:rgba(255,255,255,.66);max-width:520px;
+    margin:0 auto 36px;line-height:1.6;opacity:0;animation:up 1.1s ease 1.75s forwards}
+  .cta{pointer-events:auto;display:inline-flex;align-items:center;gap:10px;cursor:pointer;
+    font-size:16px;font-weight:600;color:#0a0612;padding:15px 34px;border:none;border-radius:40px;
+    background:linear-gradient(110deg,var(--cyan),var(--violet),var(--magenta));
+    background-size:200% auto;box-shadow:0 8px 30px rgba(167,139,250,.5),0 0 0 0 rgba(34,211,238,.5);
+    opacity:0;animation:up 1.1s ease 1.95s forwards,flow 6s linear infinite;
+    transition:transform .3s,box-shadow .3s}
+  .cta:hover{transform:translateY(-3px) scale(1.04);
+    box-shadow:0 14px 50px rgba(244,114,182,.6),0 0 40px rgba(34,211,238,.5)}
+  .cta .arrow{transition:transform .3s}.cta:hover .arrow{transform:translateX(5px)}
+  @keyframes up{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+
+  .grain{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:.05;
+    background-image:radial-gradient(rgba(255,255,255,.9) .5px,transparent .5px);background-size:3px 3px}
+  .vign{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.55) 100%)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="mesh" id="mesh">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <div class="blob b4"></div><div class="blob b5"></div>
+  </div>
+  <div class="vign"></div>
+  <canvas id="constellation"></canvas>
+  <div class="core" id="core">
+    <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+    <div class="orb"></div>
+  </div>
+  <div class="cards" id="cards">
+    <div class="card c1"><div class="dot"></div><div class="l1"></div><div class="l2"></div></div>
+    <div class="card c2"><div class="dot"></div><div class="l1"></div><div class="l2"></div></div>
+    <div class="card c3"><div class="dot"></div><div class="l1"></div><div class="l2"></div></div>
+    <div class="card c4"><div class="dot"></div><div class="l1"></div><div class="l2"></div></div>
+  </div>
+  <div class="hero">
+    <span class="badge">Generated &middot; Beautifully</span>
+    <h1>Ship interfaces<br><span class="grad">that feel alive</span></h1>
+    <p class="sub">Luminous, fluid, and rendered in real time &mdash; design that moves the moment it loads.</p>
+    <button class="cta">Explore the canvas <span class="arrow">&rarr;</span></button>
+  </div>
+  <div class="grain"></div>
+</div>
+
+<script>
+(function(){
+  const canvas=document.getElementById('constellation'), ctx=canvas.getContext('2d');
+  const palette=['#22d3ee','#f472b6','#a78bfa','#d4a574','#5ab896'];
+  let W,H,DPR,particles=[],mx=0,my=0,tx=0,ty=0;
+
+  function resize(){
+    DPR=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth;H=window.innerHeight;
+    canvas.width=W*DPR;canvas.height=H*DPR;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    const count=Math.min(150,Math.floor(W*H/9000));
+    particles=[];
+    for(let i=0;i<count;i++){
+      particles.push({
+        x:Math.random()*W,y:Math.random()*H,
+        vx:(Math.random()-.5)*.32,vy:(Math.random()-.5)*.32,
+        r:Math.random()*1.8+.7,depth:Math.random()*.9+.2,
+        c:palette[i%palette.length]
+      });
+    }
+  }
+  window.addEventListener('resize',resize);
+
+  window.addEventListener('pointermove',e=>{tx=(e.clientX/W-.5);ty=(e.clientY/H-.5);});
+
+  // parallax for cards + core toward cursor
+  const cards=[...document.querySelectorAll('.card')], core=document.getElementById('core'),
+        mesh=document.getElementById('mesh');
+  function parallax(){
+    mx+=(tx-mx)*.06;my+=(ty-my)*.06;
+    cards.forEach((c,i)=>{
+      const d=(i%2?-1:1)*(22+i*8);
+      c.style.transform=`translate3d(${mx*d}px,${my*d}px,0) rotateX(${-my*9}deg) rotateY(${mx*12}deg)`;
+    });
+    core.style.transform=`translate(-50%,-50%) translate3d(${mx*-26}px,${my*-26}px,0)`;
+    mesh.style.transform=`translate3d(${mx*-30}px,${my*-30}px,0)`;
+    requestAnimationFrame(parallax);
+  }
+  requestAnimationFrame(parallax);
+
+  const LINK=130;
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter';
+    for(const p of particles){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+      const ox=mx*40*p.depth, oy=my*40*p.depth;
+      const px=p.x+ox, py=p.y+oy;
+      ctx.beginPath();
+      ctx.fillStyle=p.c;
+      ctx.shadowBlur=10;ctx.shadowColor=p.c;
+      ctx.arc(px,py,p.r,0,6.2832);ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    for(let i=0;i<particles.length;i++){
+      const a=particles[i], ax=a.x+mx*40*a.depth, ay=a.y+my*40*a.depth;
+      for(let j=i+1;j<particles.length;j++){
+        const b=particles[j], bx=b.x+mx*40*b.depth, by=b.y+my*40*b.depth;
+        const dx=ax-bx, dy=ay-by, dist=Math.hypot(dx,dy);
+        if(dist<LINK){
+          ctx.strokeStyle=a.c;
+          ctx.globalAlpha=(1-dist/LINK)*.28;
+          ctx.lineWidth=.6;
+          ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+    requestAnimationFrame(draw);
+  }
+  resize();
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

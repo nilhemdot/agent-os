@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Synth Pads</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0a0612;}
+  #c{display:block;width:100vw;height:100vh;touch-action:none;cursor:pointer;}
+  #hint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+    font:300 12px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.18em;
+    color:rgba(255,255,255,.32);text-transform:uppercase;pointer-events:none;
+    text-align:center;user-select:none;transition:opacity .6s;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">click &middot; drag &middot; keys 1-4 q-r a-f z-v</div>
+<script>
+(function(){
+"use strict";
+const cv=document.getElementById("c"),ctx=cv.getContext("2d"),hintEl=document.getElementById("hint");
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth;H=window.innerHeight;
+  cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+"px";cv.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  layout();
+}
+window.addEventListener("resize",resize);
+
+// ---- palette (cyan, magenta, violet, gold, emerald) ----
+const PAL=[[34,211,238],[244,114,182],[167,139,250],[212,165,116],[90,184,150]];
+function pcol(i){return PAL[i%PAL.length];}
+function rgba(c,a){return "rgba("+c[0]+","+c[1]+","+c[2]+","+a+")";}
+
+// ---- pentatonic tuning (C minor pentatonic over rows) ----
+const SCALE=[0,3,5,7,10]; // semitone offsets
+const ROWS=4,COLS=4,N=ROWS*COLS;
+function freqFor(idx){
+  // build ascending pentatonic across the 16 pads (bottom-left low -> top-right high)
+  const col=idx%COLS, row=Math.floor(idx/COLS);
+  const step=(ROWS-1-row)*COLS+col;      // 0..15 ascending, top row lowest visually? invert so top=high
+  const order=row*COLS+col;              // simpler: index ascending by reading order from bottom
+  const seq=(ROWS-1-row)*COLS+col;       // bottom row = low
+  const oct=Math.floor(seq/SCALE.length);
+  const semi=SCALE[seq%SCALE.length];
+  const base=130.81; // C3
+  return base*Math.pow(2,(semi/12)+oct);
+}
+function colorFor(idx){
+  const seq=(ROWS-1-Math.floor(idx/COLS))*COLS+(idx%COLS);
+  return pcol(seq% PAL.length);
+}
+
+// ---- pad geometry ----
+const pads=[];
+function layout(){
+  pads.length=0;
+  const m=Math.min(W,H)*0.07;
+  const gw=W-m*2, gh=H-m*2;
+  const cw=gw/COLS, ch=gh/ROWS;
+  const s=Math.min(cw,ch)*0.78;
+  const ox=m+(gw-cw*COLS)/2, oy=m+(gh-ch*ROWS)/2;
+  for(let r=0;r<ROWS;r++)for(let cI=0;cI<COLS;cI++){
+    const idx=r*COLS+cI;
+    pads.push({
+      idx, x:ox+cw*cI+cw/2, y:oy+ch*r+ch/2, r:s/2,
+      glow:0, freq:freqFor(idx), col:colorFor(idx)
+    });
+  }
+}
+
+// ---- audio ----
+let AC=null, master=null, started=false;
+function initAudio(){
+  if(AC) return;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain();master.gain.value=0.0001;
+  const comp=AC.createDynamicsCompressor();
+  master.connect(comp);comp.connect(AC.destination);
+  master.gain.linearRampToValueAtTime(0.5,AC.currentTime+0.4);
+  started=true;
+  hintEl.style.opacity="0";
+}
+function playTone(freq,vel){
+  if(!AC) return;
+  const t=AC.currentTime;
+  const g=AC.createGain();
+  const o1=AC.createOscillator(),o2=AC.createOscillator();
+  o1.type="triangle";o2.type="sine";
+  o1.frequency.value=freq;o2.frequency.value=freq*2.0;
+  const o2g=AC.createGain();o2g.gain.value=0.25;
+  // gentle lowpass for warmth
+  const lp=AC.createBiquadFilter();lp.type="lowpass";
+  lp.frequency.setValueAtTime(freq*6+800,t);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(freq*2,400),t+0.6);
+  const peak=0.18*vel;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(peak,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+1.4);
+  o1.connect(g);o2.connect(o2g);o2g.connect(g);
+  g.connect(lp);lp.connect(master);
+  o1.start(t);o2.start(t);
+  o1.stop(t+1.5);o2.stop(t+1.5);
+}
+
+// ---- visual effects ----
+const ripples=[], sparks=[], ambient=[];
+let bgPulse=0, hueShift=0;
+function initAmbient(){
+  ambient.length=0;
+  const n=70;
+  for(let i=0;i<n;i++){
+    ambient.push({
+      x:Math.random()*W, y:Math.random()*H,
+      vx:(Math.random()-0.5)*0.25, vy:(Math.random()-0.5)*0.25,
+      r:Math.random()*1.8+0.4, c:pcol(Math.floor(Math.random()*PAL.length)),
+      ph:Math.random()*Math.PI*2
+    });
+  }
+}
+function trigger(pad,vel){
+  pad.glow=1;
+  bgPulse=Math.min(bgPulse+0.6,1.2);
+  ripples.push({x:pad.x,y:pad.y,rad:pad.r*0.5,life:1,col:pad.col,speed:Math.max(W,H)*0.0042});
+  ripples.push({x:pad.x,y:pad.y,rad:pad.r*0.2,life:1,col:pad.col,speed:Math.max(W,H)*0.0028});
+  const cnt=22+Math.floor(vel*18);
+  for(let i=0;i<cnt;i++){
+    const a=Math.random()*Math.PI*2, sp=(Math.random()*4+1.5)*(0.6+vel);
+    sparks.push({x:pad.x,y:pad.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+      life:1,decay:0.012+Math.random()*0.02,r:Math.random()*2.4+0.8,col:pad.col});
+  }
+  playTone(pad.freq,vel);
+}
+
+// ---- input ----
+let dragging=false,lastPad=-1;
+function padAt(x,y){
+  for(const p of pads){const dx=x-p.x,dy=y-p.y;if(dx*dx+dy*dy<=p.r*p.r)return p;}
+  return null;
+}
+function gesture(x,y,vel){
+  const p=padAt(x,y);
+  if(p&&p.idx!==lastPad){trigger(p,vel);lastPad=p.idx;}
+  else if(!p)lastPad=-1;
+}
+function pos(e){
+  const t=e.touches?e.touches[0]:e;
+  return {x:t.clientX,y:t.clientY};
+}
+cv.addEventListener("pointerdown",e=>{
+  if(!started)initAudio();
+  if(AC&&AC.state==="suspended")AC.resume();
+  dragging=true;lastPad=-1;
+  const{x,y}=pos(e);gesture(x,y,1);
+});
+cv.addEventListener("pointermove",e=>{
+  const{x,y}=pos(e);
+  if(dragging)gesture(x,y,0.85);
+  else{const p=padAt(x,y);if(p&&p.glow<0.35)p.glow=Math.max(p.glow,0.35);} // hover shimmer
+});
+window.addEventListener("pointerup",()=>{dragging=false;lastPad=-1;});
+cv.addEventListener("pointerleave",()=>{lastPad=-1;});
+
+// hover trigger (mouse only) — light tap when entering a pad while not dragging
+let hoverPad=-1;
+cv.addEventListener("pointermove",e=>{
+  if(dragging||e.pointerType==="touch")return;
+  const{x,y}=pos(e);const p=padAt(x,y);
+  if(p){if(p.idx!==hoverPad){if(started)trigger(p,0.55);hoverPad=p.idx;}}
+  else hoverPad=-1;
+});
+
+// keyboard mapping 4x4
+const KEYMAP={"1":0,"2":1,"3":2,"4":3,"q":4,"w":5,"e":6,"r":7,
+  "a":8,"s":9,"d":10,"f":11,"z":12,"x":13,"c":14,"v":15};
+const keyDown={};
+window.addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase();
+  if(!(k in KEYMAP)||keyDown[k])return;
+  keyDown[k]=true;
+  if(!started)initAudio();
+  if(AC&&AC.state==="suspended")AC.resume();
+  trigger(pads[KEYMAP[k]],1);
+});
+window.addEventListener("keyup",e=>{delete keyDown[e.key.toLowerCase()];});
+
+// ---- shimmer for the "click to start" state ----
+let shimmer=0;
+
+// ---- render loop ----
+function frame(t){
+  shimmer=t*0.001;hueShift=t*0.00006;
+  // trailing fade (slight) on near-black
+  ctx.globalCompositeOperation="source-over";
+  ctx.fillStyle="rgba(10,6,18,"+(0.30+bgPulse*0.05)+")";
+  ctx.fillRect(0,0,W,H);
+
+  // background radial pulse
+  if(bgPulse>0.002){
+    const g=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*0.7);
+    g.addColorStop(0,"rgba(40,20,60,"+(bgPulse*0.10)+")");
+    g.addColorStop(1,"rgba(10,6,18,0)");
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    bgPulse*=0.94;
+  }
+
+  ctx.globalCompositeOperation="lighter";
+
+  // ambient drifting particles
+  for(const a of ambient){
+    a.x+=a.vx;a.y+=a.vy;a.ph+=0.02;
+    if(a.x<-10)a.x=W+10;if(a.x>W+10)a.x=-10;
+    if(a.y<-10)a.y=H+10;if(a.y>H+10)a.y=-10;
+    const al=(0.10+0.10*Math.sin(a.ph))*(0.5+bgPulse*0.4);
+    ctx.beginPath();ctx.fillStyle=rgba(a.c,al);
+    ctx.arc(a.x,a.y,a.r,0,Math.PI*2);ctx.fill();
+  }
+
+  // ripples (concentric wave rings across whole canvas)
+  for(let i=ripples.length-1;i>=0;i--){
+    const r=ripples[i];
+    r.rad+=r.speed;r.life-=0.011;
+    if(r.life<=0||r.rad>Math.max(W,H)*1.3){ripples.splice(i,1);continue;}
+    const a=r.life*r.life*0.5;
+    ctx.lineWidth=2.5*r.life+0.5;
+    ctx.strokeStyle=rgba(r.col,a);
+    ctx.beginPath();ctx.arc(r.x,r.y,r.rad,0,Math.PI*2);ctx.stroke();
+    // soft inner echo
+    ctx.lineWidth=1;ctx.strokeStyle=rgba(r.col,a*0.4);
+    ctx.beginPath();ctx.arc(r.x,r.y,r.rad*0.92,0,Math.PI*2);ctx.stroke();
+  }
+
+  // pads
+  for(const p of pads){
+    p.glow*=0.93;
+    const base=0.18+p.glow*0.82;
+    const idle=0.06+0.04*Math.sin(shimmer*1.6+p.idx*0.7); // gentle breathing
+    const lvl=Math.max(base,idle);
+    const rr=p.r*(1+p.glow*0.10);
+    // outer halo
+    const g=ctx.createRadialGradient(p.x,p.y,rr*0.1,p.x,p.y,rr*1.9);
+    g.addColorStop(0,rgba(p.col,lvl*0.9));
+    g.addColorStop(0.5,rgba(p.col,lvl*0.28));
+    g.addColorStop(1,rgba(p.col,0));
+    ctx.fillStyle=g;
+    ctx.beginPath();ctx.arc(p.x,p.y,rr*1.9,0,Math.PI*2);ctx.fill();
+    // core neon disc
+    const core=ctx.createRadialGradient(p.x-rr*0.25,p.y-rr*0.25,rr*0.05,p.x,p.y,rr);
+    core.addColorStop(0,rgba([255,255,255],lvl*0.85));
+    core.addColorStop(0.35,rgba(p.col,lvl*0.95));
+    core.addColorStop(1,rgba(p.col,lvl*0.30));
+    ctx.fillStyle=core;
+    ctx.beginPath();ctx.arc(p.x,p.y,rr,0,Math.PI*2);ctx.fill();
+    // crisp rim
+    ctx.lineWidth=1.5;
+    ctx.strokeStyle=rgba(p.col,Math.min(0.6,0.2+p.glow*0.8));
+    ctx.beginPath();ctx.arc(p.x,p.y,rr*0.98,0,Math.PI*2);ctx.stroke();
+  }
+
+  // sparkle particles
+  for(let i=sparks.length-1;i>=0;i--){
+    const s=sparks[i];
+    s.x+=s.vx;s.y+=s.vy;s.vx*=0.965;s.vy*=0.965;s.vy+=0.02;
+    s.life-=s.decay;
+    if(s.life<=0){sparks.splice(i,1);continue;}
+    const a=s.life*s.life;
+    ctx.fillStyle=rgba(s.col,a);
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r*s.life+0.3,0,Math.PI*2);ctx.fill();
+    // bright center
+    ctx.fillStyle=rgba([255,255,255],a*0.6);
+    ctx.beginPath();ctx.arc(s.x,s.y,(s.r*s.life+0.3)*0.4,0,Math.PI*2);ctx.fill();
+  }
+
+  // "click to start" shimmer overlay until audio begins
+  if(!started){
+    const pulse=0.12+0.10*Math.sin(shimmer*2.2);
+    ctx.fillStyle=rgba([167,139,250],pulse*0.18);
+    ctx.fillRect(0,0,W,H);
+    const cx=W/2,cy=H/2,R=Math.min(W,H)*(0.30+0.02*Math.sin(shimmer*2.2));
+    const g=ctx.createRadialGradient(cx,cy,R*0.7,cx,cy,R);
+    g.addColorStop(0,"rgba(34,211,238,0)");
+    g.addColorStop(1,rgba([34,211,238],pulse*0.5));
+    ctx.strokeStyle=rgba([255,255,255],0.10+0.08*Math.sin(shimmer*2.2));
+    ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.stroke();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+resize();
+initAmbient();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

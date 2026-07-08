@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flow Field</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0612; }
+  canvas { display: block; }
+  #hint {
+    position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+    font: 11px/1 -apple-system, system-ui, sans-serif; letter-spacing: 2px;
+    color: rgba(255,255,255,0.18); pointer-events: none; user-select: none;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">move &middot; touch</div>
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  // ---- Shared palette (deep near-black + 5 hues) -------------------------
+  const BG = "#0a0612";
+  const PALETTE = [
+    [34, 211, 238],   // cyan   #22d3ee
+    [244, 114, 182],  // magenta#f472b6
+    [167, 139, 250],  // violet #a78bfa
+    [212, 165, 116],  // gold   #d4a574
+    [90, 184, 150],   // emerald#5ab896
+  ];
+
+  // ---- Lightweight value noise (inline, no libs) -------------------------
+  // Hash-based gradient grid -> smooth interpolated value noise.
+  const PERM = new Uint8Array(512);
+  (() => {
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    let seed = 1337;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    for (let i = 255; i > 0; i--) {
+      const j = (rnd() * (i + 1)) | 0;
+      const t = p[i]; p[i] = p[j]; p[j] = t;
+    }
+    for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+  })();
+
+  const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  // pseudo-gradient value at integer corner
+  const grad = (ix, iy, iz) => {
+    const h = PERM[(PERM[(PERM[ix & 255] + iy) & 255] + iz) & 255];
+    return (h / 255) * 2 - 1; // -1..1
+  };
+
+  // 3D value noise (z = time) -> returns ~ -1..1
+  function noise3(x, y, z) {
+    const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+    const fx = x - ix, fy = y - iy, fz = z - iz;
+    const u = fade(fx), v = fade(fy), w = fade(fz);
+    const c000 = grad(ix,   iy,   iz);
+    const c100 = grad(ix+1, iy,   iz);
+    const c010 = grad(ix,   iy+1, iz);
+    const c110 = grad(ix+1, iy+1, iz);
+    const c001 = grad(ix,   iy,   iz+1);
+    const c101 = grad(ix+1, iy,   iz+1);
+    const c011 = grad(ix,   iy+1, iz+1);
+    const c111 = grad(ix+1, iy+1, iz+1);
+    const x00 = lerp(c000, c100, u), x10 = lerp(c010, c110, u);
+    const x01 = lerp(c001, c101, u), x11 = lerp(c011, c111, u);
+    const y0 = lerp(x00, x10, v), y1 = lerp(x01, x11, v);
+    return lerp(y0, y1, w);
+  }
+
+  // ---- State -------------------------------------------------------------
+  let W = 0, H = 0, DPR = 1;
+  let particles = [];
+  const COUNT = window.innerWidth < 700 ? 2500 : 3600;
+
+  const NOISE_SCALE = 0.0016;  // spatial frequency of the field
+  const TIME_SCALE = 0.00009;  // field animation speed
+  const SPEED = 1.7;           // particle base speed
+  const TURNS = Math.PI * 4;   // angle range mapped from noise
+
+  const pointer = { x: 0, y: 0, active: false, mode: 1 }; // mode: 1 attract, -1 repel
+  const POINTER_RADIUS = 170;
+  const POINTER_FORCE = 0.9;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+    pointer.x = W / 2; pointer.y = H / 2;
+  }
+
+  function spawn() {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      px: 0, py: 0,
+      vx: 0, vy: 0,
+      life: Math.random(),          // colour phase offset 0..1
+    };
+  }
+
+  function initParticles() {
+    particles = new Array(COUNT);
+    for (let i = 0; i < COUNT; i++) particles[i] = spawn();
+  }
+
+  // Blend two palette colours -> "r,g,b" string
+  function paletteColor(t) {
+    const n = PALETTE.length;
+    const f = ((t % 1) + 1) % 1 * n;
+    const i = Math.floor(f);
+    const frac = f - i;
+    const a = PALETTE[i % n], b = PALETTE[(i + 1) % n];
+    const r = (a[0] + (b[0] - a[0]) * frac) | 0;
+    const g = (a[1] + (b[1] - a[1]) * frac) | 0;
+    const bl = (a[2] + (b[2] - a[2]) * frac) | 0;
+    return r + "," + g + "," + bl;
+  }
+
+  // ---- Main loop ---------------------------------------------------------
+  let t0 = performance.now();
+
+  function frame(now) {
+    const time = now * TIME_SCALE;
+    const colorCycle = now * 0.00004; // whole palette slowly cycling
+
+    // Translucent dark rect for slowly-fading trails (no full clear)
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(10,6,18,0.066)";
+    ctx.fillRect(0, 0, W, H);
+
+    // Additive glow for the particle strokes
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineWidth = 1.1;
+    ctx.lineCap = "round";
+
+    for (let i = 0; i < COUNT; i++) {
+      const p = particles[i];
+
+      // Sample the flow field -> angle
+      const n = noise3(p.x * NOISE_SCALE, p.y * NOISE_SCALE, time);
+      const angle = n * TURNS;
+      let ax = Math.cos(angle) * SPEED;
+      let ay = Math.sin(angle) * SPEED;
+
+      // Pointer swirl (attract / repel + tangential swirl)
+      if (pointer.active) {
+        const dx = pointer.x - p.x, dy = pointer.y - p.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < POINTER_RADIUS * POINTER_RADIUS) {
+          const d = Math.sqrt(d2) || 1;
+          const falloff = (1 - d / POINTER_RADIUS) * POINTER_FORCE;
+          const ux = dx / d, uy = dy / d;
+          // radial pull/push
+          ax += ux * falloff * pointer.mode * 4;
+          ay += uy * falloff * pointer.mode * 4;
+          // tangential swirl -> paintable vortices
+          ax += -uy * falloff * 3.2;
+          ay += ux * falloff * 3.2;
+        }
+      }
+
+      // Velocity smoothing for silky motion
+      p.vx += (ax - p.vx) * 0.16;
+      p.vy += (ay - p.vy) * 0.16;
+
+      p.px = p.x; p.py = p.y;
+      p.x += p.vx; p.y += p.vy;
+
+      // Wrap around edges
+      let wrapped = false;
+      if (p.x < 0) { p.x += W; wrapped = true; }
+      else if (p.x >= W) { p.x -= W; wrapped = true; }
+      if (p.y < 0) { p.y += H; wrapped = true; }
+      else if (p.y >= H) { p.y -= H; wrapped = true; }
+
+      // Occasional respawn to keep the field fresh
+      p.life += 0.0009;
+      if (p.life > 1.4 && Math.random() < 0.004) {
+        const np = spawn();
+        p.x = np.x; p.y = np.y; p.vx = 0; p.vy = 0;
+        p.life = Math.random();
+        continue;
+      }
+
+      if (wrapped) continue; // don't draw the seam line
+
+      // Colour mapped to flow angle + speed, whole palette cycling
+      const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      const hueT = (angle / (Math.PI * 2)) * 0.5 + p.life * 0.25 + colorCycle;
+      const rgb = paletteColor(hueT);
+      const alpha = 0.16 + Math.min(speed / 6, 0.42);
+
+      ctx.strokeStyle = "rgba(" + rgb + "," + alpha + ")";
+      ctx.beginPath();
+      ctx.moveTo(p.px, p.py);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // ---- Input -------------------------------------------------------------
+  function setPointer(x, y) { pointer.x = x; pointer.y = y; pointer.active = true; }
+
+  window.addEventListener("mousemove", (e) => setPointer(e.clientX, e.clientY));
+  window.addEventListener("mouseleave", () => { pointer.active = false; });
+  window.addEventListener("mousedown", () => { pointer.mode = -1; }); // hold = repel
+  window.addEventListener("mouseup", () => { pointer.mode = 1; });
+
+  window.addEventListener("touchstart", (e) => {
+    if (e.touches[0]) setPointer(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  window.addEventListener("touchmove", (e) => {
+    if (e.touches[0]) setPointer(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  window.addEventListener("touchend", () => { pointer.active = false; }, { passive: true });
+
+  window.addEventListener("resize", resize);
+
+  // ---- Boot --------------------------------------------------------------
+  resize();
+  initParticles();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
