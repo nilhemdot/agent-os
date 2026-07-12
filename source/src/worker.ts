@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import { appendRunEvent, claimNextRun, createRun, getRun, heartbeat, reconcileLost, tripRun } from "./lib/ledger";
 import { parseClaudeOtelJson, parseClaudeOtelProtobuf, parseHermesRow } from "./lib/runAdapters";
-import { run, type AgentName } from "./lib/runner";
+import { run, runSecretValues, type AgentName } from "./lib/runner";
 import { listSessions } from "./lib/codexWorkspace";
 import { listBoards, listTasks, showTask } from "./lib/kanbanDb";
 import { canaryForRun, containsSecret } from "./lib/credentialBroker";
@@ -20,9 +20,14 @@ const receiver = createServer((req, res) => {
     if (typeof runId === "string") {
       const body = Buffer.concat(chunks);
       const contentType = String(req.headers["content-type"] || "");
-      if (containsSecret(body.toString("utf8"), [canaryForRun(runId)])) {
-        appendRunEvent(runId, "security_alert", { kind: "canary_exposed", channel: "otel" });
-        tripRun(runId, "canary_exposed");
+      // Detect the canary AND any of the run's secret values (in-memory, same process
+      // as prepareRun) in the telemetry body before it is parsed/recorded (M3.7).
+      const secrets = runSecretValues.get(runId) || [canaryForRun(runId)];
+      if (containsSecret(body.toString("utf8"), secrets)) {
+        const canary = canaryForRun(runId);
+        const kind = containsSecret(body.toString("utf8"), [canary]) ? "canary_exposed" : "secret_exposed";
+        appendRunEvent(runId, "security_alert", { kind, channel: "otel" });
+        tripRun(runId, kind);
       }
       appendRunEvent(runId, "otel.batch", { signal, contentType, bytes: body.length });
       try {

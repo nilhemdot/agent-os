@@ -1,4 +1,5 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config";
 import { appendRunEvent, budgetPrecheck, createRun, getRun, runPolicy, tripRun, updateRunMetadata } from "./ledger";
@@ -38,7 +39,10 @@ function telemetryEnv(runId: string, workspace: string, extra: Record<string, st
     CLAUDE_CODE_ENABLE_TELEMETRY: "1", OTEL_METRICS_EXPORTER: "otlp", OTEL_LOGS_EXPORTER: "otlp",
     OTEL_TRACES_EXPORTER: "otlp", OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf",
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318", OTEL_METRIC_EXPORT_INTERVAL: "10000",
-    OTEL_LOGS_EXPORT_INTERVAL: "5000", OTEL_LOG_TOOL_DETAILS: "1",
+    // OTEL_LOG_TOOL_DETAILS is deliberately NOT set: with it enabled the claude CLI
+    // emits raw tool params (which can contain secret values) into the OTLP log body.
+    // Dropping it removes that exfil surface at the source (M3.7 fail-safe).
+    OTEL_LOGS_EXPORT_INTERVAL: "5000",
     OTEL_RESOURCE_ATTRIBUTES: `agentos.run_id=${runId},agentos.workspace=${workspace.replaceAll(",", "_")}`,
     OTEL_EXPORTER_OTLP_HEADERS: `x-agentos-run-id=${runId}`, AGENTOS_RUN_ID: runId, ...extra,
   };
@@ -117,6 +121,44 @@ export interface RunResult {
 type RunOptions = { cwd: string; timeoutMs?: number; input?: string; extraEnv?: Record<string, string>; runId?: string;
   policy?: Partial<BreakerPolicy> & { secretRefs?: unknown; sandbox?: unknown }; detached?: boolean };
 
+// In-memory map of runId -> secret/canary values, populated at spawn and cleared
+// on finish. Never persisted. The OTLP receiver (same worker process) reads it to
+// redact/detect secret values in telemetry bodies (M3.7).
+export const runSecretValues = new Map<string, string[]>();
+
+const SCAN_SKIP = new Set([".git", "node_modules", ".next", ".turbo", "dist", "out", "coverage"]);
+const SCAN_MAX_FILES = 2_000;
+const SCAN_MAX_BYTES = 1_000_000;
+
+// Post-run scan of the workspace for the canary + secret-value variants written to
+// disk during the run. mtime>=run-start covers both git and non-git workspaces
+// (superset of `git diff`). Bounded by file count + per-file size.
+// ponytail: mtime walk instead of `git diff` — strictly a superset, one code path.
+export function scanWorkspaceForSecrets(cwd: string, sinceMs: number, values: string[]): string[] {
+  if (!values.length) return [];
+  const hits: string[] = [];
+  let budget = SCAN_MAX_FILES;
+  const walk = (dir: string) => {
+    let entries: string[];
+    try { entries = readdirSync(dir); } catch { return; }
+    for (const name of entries) {
+      if (budget <= 0 || hits.length >= 20) return;
+      if (SCAN_SKIP.has(name)) continue;
+      const full = path.join(dir, name);
+      let stat: ReturnType<typeof statSync>;
+      try { stat = statSync(full); } catch { continue; }
+      if (stat.isDirectory()) { walk(full); continue; }
+      if (!stat.isFile() || stat.mtimeMs < sinceMs || stat.size > SCAN_MAX_BYTES) continue;
+      budget--;
+      let text: string;
+      try { text = readFileSync(full, "utf8"); } catch { continue; }
+      if (containsSecret(text, values)) hits.push(path.relative(cwd, full));
+    }
+  };
+  walk(cwd);
+  return hits;
+}
+
 function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions) {
   const cleanArgs = validateAgentArgs(args), cwd = requireWorkspace(opts.cwd), originalBin = binFor(agent);
   const version = cliVersion(agent, originalBin, cwd);
@@ -141,6 +183,8 @@ function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions)
   try { launch = selectSandbox(agent, originalBin, cleanArgs, rawPolicy.sandbox); }
   catch (error) { const reason = `sandbox: ${String(error)}`; tripRun(runId, reason); throw error; }
   setRunSandbox(runId, launch.sandbox);
+  // Explicit sandbox:"none" opt-out is honored but never silent (M3.10).
+  if (launch.sandbox === "none") appendRunEvent(runId, "security_alert", { kind: "sandbox_disabled", agent });
   const billingEnv = { ...env,
     ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
     AGENTOS_ANTHROPIC_PLAN: process.env.AGENTOS_ANTHROPIC_PLAN,
@@ -152,9 +196,11 @@ function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions)
     || budgetPrecheck(runId, policy.estimatedCallUsd);
   if (refusal) { tripRun(runId, refusal); throw new Error(refusal); }
   if (!opts.runId) appendRunEvent(runId, "started", {});
+  const redactions = [...secrets.values, canary];
+  runSecretValues.set(runId, redactions);
   return { bin: launch.bin, cleanArgs: launch.args.map((arg) => redactText(arg, secrets.values)), cwd, runId, policy, env,
     input: opts.input ? redactText(opts.input, secrets.values) : undefined,
-    secrets: secrets.values, redactions: [...secrets.values, canary], canary };
+    secrets: secrets.values, redactions, canary };
 }
 
 function killProcessTree(child: ChildProcessWithoutNullStreams) {
@@ -188,10 +234,14 @@ export function monitorChild(child: ChildProcessWithoutNullStreams, runId: strin
   return { breaker, feed, stop: () => clearInterval(timer) };
 }
 
-function finishRun(runId: string, agent: AgentName, code: number | null, stdout: string, stderr: string, secrets: string[]) {
+function finishRun(runId: string, agent: AgentName, code: number | null, stdout: string, stderr: string, secrets: string[], cwd: string, startedMs: number) {
   const usage = parseJsonlUsage(stdout);
   if (usage.inputTokens || usage.outputTokens || usage.cacheTokens || usage.costUsd) appendRunEvent(runId, "usage", usage);
   if (usage.externalRunId) updateRunMetadata(runId, { externalSource: agent, externalRunId: usage.externalRunId });
+  // Post-run: scan files the run wrote for canary + secret-value variants (M3.8/M3.12).
+  const leaked = scanWorkspaceForSecrets(cwd, startedMs, secrets);
+  if (leaked.length) { appendRunEvent(runId, "security_alert", { kind: "secret_in_artifact", files: leaked }); tripRun(runId, "secret_in_artifact"); }
+  runSecretValues.delete(runId);
   const safeErr = redactText(stderr, secrets);
   if (getRun(runId)?.tripped_reason) appendRunEvent(runId, "process_exited", { code, afterTrip: true });
   else appendRunEvent(runId, code === 0 ? "completed" : "failed", { code, stderr: safeErr.slice(-2_000) });
@@ -222,12 +272,12 @@ export async function run(
     child.stdout.on("data", (b) => { const text = b.toString(); stdout += text; monitor.feed(text); });
     child.stderr.on("data", (b) => { const text = b.toString(); stderr += text; monitor.feed(text); });
     child.on("close", (code) => {
-      clearTimeout(timeout); monitor.feed("\n"); monitor.stop(); finishRun(prepared.runId, agent, code, stdout, stderr, prepared.redactions);
+      clearTimeout(timeout); monitor.feed("\n"); monitor.stop(); finishRun(prepared.runId, agent, code, stdout, stderr, prepared.redactions, prepared.cwd, started);
       resolve({ ok: code === 0 && !getRun(prepared.runId)?.tripped_reason, code,
         stdout: redactText(stdout, prepared.redactions), stderr: redactText(stderr, prepared.redactions), durationMs: Date.now() - started });
     });
     child.on("error", (e) => {
-      clearTimeout(timeout); monitor.stop(); appendRunEvent(prepared.runId, "failed", { error: String(e) });
+      clearTimeout(timeout); monitor.stop(); runSecretValues.delete(prepared.runId); appendRunEvent(prepared.runId, "failed", { error: String(e) });
       resolve({ ok: false, code: -1, stdout, stderr: String(e), durationMs: Date.now() - started });
     });
 
@@ -241,6 +291,7 @@ export function spawnStream(
   args: readonly string[],
   opts: RunOptions
 ): ChildProcessWithoutNullStreams {
+  const started = Date.now();
   const prepared = prepareRun(agent, args, opts);
   const child = spawn(prepared.bin, prepared.cleanArgs, {
     cwd: prepared.cwd,
@@ -260,9 +311,9 @@ export function spawnStream(
   child.stdout.on("data", (b) => { const text = b.toString(); stdout += text; monitor.feed(text); });
   child.stderr.on("data", (b) => { const text = b.toString(); stderr += text; monitor.feed(text); });
   child.on("close", (code) => {
-    monitor.feed("\n"); monitor.stop(); finishRun(prepared.runId, agent, code, stdout, stderr, prepared.redactions);
+    monitor.feed("\n"); monitor.stop(); finishRun(prepared.runId, agent, code, stdout, stderr, prepared.redactions, prepared.cwd, started);
   });
-  child.on("error", (e) => { monitor.stop(); appendRunEvent(prepared.runId, "failed", { error: String(e) }); });
+  child.on("error", (e) => { monitor.stop(); runSecretValues.delete(prepared.runId); appendRunEvent(prepared.runId, "failed", { error: String(e) }); });
   return new Proxy(child, { get(target, property) {
     if (property === "stdout") return safeStdout;
     if (property === "stderr") return safeStderr;
