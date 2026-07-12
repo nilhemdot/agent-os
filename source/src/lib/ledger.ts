@@ -55,6 +55,28 @@ const migrations = [
      id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id), secret_id TEXT NOT NULL,
      env_name TEXT NOT NULL, created_at TEXT NOT NULL
    );`,
+  // M4 "the contract" — §4.3 data model. A run without criteria is not a run.
+  `CREATE TABLE criteria (
+     id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+     ordinal INTEGER NOT NULL, kind TEXT NOT NULL, ears_text TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'unmet'
+   );
+   CREATE INDEX criteria_run ON criteria(run_id, ordinal);
+   CREATE TABLE artifacts (
+     id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+     kind TEXT NOT NULL, ref TEXT NOT NULL, created_at TEXT NOT NULL
+   );
+   CREATE TABLE decisions (
+     id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+     seq INTEGER NOT NULL, question TEXT NOT NULL, chosen TEXT NOT NULL,
+     rejected_json TEXT NOT NULL, criterion_id TEXT REFERENCES criteria(id),
+     evidence_event_id TEXT REFERENCES run_events(id), UNIQUE(run_id, seq)
+   );
+   CREATE TABLE evidence_links (
+     id TEXT PRIMARY KEY, criterion_id TEXT NOT NULL REFERENCES criteria(id) ON DELETE CASCADE,
+     artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+     link_type TEXT NOT NULL, verifier TEXT, verifier_version TEXT, result TEXT NOT NULL
+   );`,
 ];
 
 let singleton: DatabaseSync | undefined;

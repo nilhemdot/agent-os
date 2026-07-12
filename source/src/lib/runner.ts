@@ -6,6 +6,7 @@ import { appendRunEvent, budgetPrecheck, createRun, getRun, runPolicy, tripRun, 
 import { parseJsonlUsage } from "./runAdapters";
 import { billingRefusal, breakerPolicy, CircuitBreaker, type BreakerPolicy } from "./circuitBreaker";
 import { scanWorkspaceConfig } from "./configFirewall";
+import { listCriteria } from "./contract";
 import { canaryForRun, containsSecret, redactText, RedactTransform, resolveSecretRefs } from "./credentialBroker";
 import { recordSecretUsage, setRunSandbox } from "./ledger";
 import { selectSandbox } from "./sandbox";
@@ -169,6 +170,13 @@ function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions)
   if (drift.length) {
     appendRunEvent(runId, "config_quarantined", { files: drift });
     const reason = `config_firewall: ${drift.map((file) => `${file.kind}:${file.path}`).join(", ")}`;
+    tripRun(runId, reason); throw new Error(reason);
+  }
+  // M4.1 pre-flight (opt-in): when policy.requireContract is set, a run missing
+  // criteria fails before the broker/spawn. Gated so existing M1-M3 contract-less
+  // runs still launch. "A run without criteria is not a run."
+  if (rawPolicy.requireContract && listCriteria(runId).length === 0) {
+    const reason = "contract: a run without criteria is not a run";
     tripRun(runId, reason); throw new Error(reason);
   }
   let secrets: ReturnType<typeof resolveSecretRefs>;
