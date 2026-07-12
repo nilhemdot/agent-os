@@ -287,18 +287,20 @@ async function fast(prompt: string, history: JarvisMsg[]): Promise<JarvisResult>
 }
 
 // AGENT: the reliable full Hermes CLI (executes tools — verified). ~28s.
-async function agent(prompt: string, history: JarvisMsg[]): Promise<JarvisResult> {
+async function agent(prompt: string, history: JarvisMsg[], yolo = false): Promise<JarvisResult> {
   const started = Date.now();
   const ctx = history.slice(-4).map((m) => `${m.role === "user" ? "Me" : "You"}: ${m.content}`).join("\n");
   const full = `${AGENT_PERSONA}\n\n${ctx ? ctx + "\n\n" : ""}Command: ${prompt}`;
-  const out = await run("hermes", ["-z", full, "--yolo", "--accept-hooks"], { cwd: process.cwd(), timeoutMs: 6 * 60 * 1000 });
+  // Approval bypass is opt-in only — never hardcoded (M0 security).
+  const unsafeArgs = yolo ? ["--yolo", "--accept-hooks"] : [];
+  const out = await run("hermes", ["-z", full, ...unsafeArgs], { cwd: process.cwd(), timeoutMs: 6 * 60 * 1000 });
   const text = out.stdout.replace(/\x1b\[[0-9;?]*[a-zA-Z]|\x1b\]\d+;[^\x07\x1b]*(\x07|\x1b\\)/g, "").trim();
   return { ok: out.ok && !!text, text: text || "(no reply — check `hermes status`)", ms: Date.now() - started, mode: "agent", error: text ? undefined : out.stderr.slice(-300) };
 }
 
 // AUTO: fast model decides — answer (fast), OPEN an app/site (fast direct exec),
 // or escalate a complex task to the full agent. Best default for a voice butler.
-async function auto(prompt: string, history: JarvisMsg[]): Promise<JarvisResult> {
+async function auto(prompt: string, history: JarvisMsg[], yolo = false): Promise<JarvisResult> {
   const started = Date.now();
   let persona = AUTO_PERSONA;
   const { relevant, context } = await vaultGrounding(prompt);
@@ -324,15 +326,15 @@ async function auto(prompt: string, history: JarvisMsg[]): Promise<JarvisResult>
 
   const agentM = text.match(/^AGENT:\s*(.+)$/im);
   if (agentM) {
-    const r = await agent(agentM[1], history); // escalate to the real agent
+    const r = await agent(agentM[1], history, yolo); // escalate to the real agent
     return { ...r, mode: "auto" };
   }
 
   return { ok: true, text, ms: Date.now() - started, mode: "auto" };
 }
 
-export async function jarvisReply(prompt: string, mode: "auto" | "fast" | "agent", history: JarvisMsg[] = []): Promise<JarvisResult> {
-  if (mode === "agent") return agent(prompt, history);
+export async function jarvisReply(prompt: string, mode: "auto" | "fast" | "agent", history: JarvisMsg[] = [], yolo = false): Promise<JarvisResult> {
+  if (mode === "agent") return agent(prompt, history, yolo);
   if (mode === "fast") return fast(prompt, history);
-  return auto(prompt, history);
+  return auto(prompt, history, yolo);
 }

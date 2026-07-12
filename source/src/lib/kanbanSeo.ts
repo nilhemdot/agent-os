@@ -24,7 +24,8 @@ export async function hermesOneShot(profile: string, prompt: string, timeoutMs =
   let lastErr = "unknown";
   for (let i = 0; i < chain.length; i++) {
     const p = chain[i];
-    const r = await run("hermes", ["--profile", p, "-z", prompt, "--yolo", "--accept-hooks"], { cwd: process.cwd(), timeoutMs });
+    // SEO one-shot generates article text only — no approval bypass needed.
+    const r = await run("hermes", ["--profile", p, "-z", prompt], { cwd: process.cwd(), timeoutMs });
     const out = (r.stdout || "").trim();
     const rateLimited = /HTTP 429|temporarily overloaded|rate.?limit/i.test(out) || (!out && /429|overloaded/i.test(r.stderr || ""));
     if (out && !rateLimited) return out;

@@ -25,6 +25,11 @@ describe("M0 security gates", () => {
 
   it("rejects unsafe agent flags", () => {
     expect(() => validateAgentArgs(["--dangerously-skip-permissions"])).toThrow();
+    expect(() => validateAgentArgs(["--dangerously-bypass-approvals-and-sandbox"])).toThrow();
+    expect(() => validateAgentArgs(["--no-sandbox"])).toThrow();
+    expect(() => validateAgentArgs(["bypassPermissions"])).toThrow();
+    // safe flags pass through unchanged
+    expect(validateAgentArgs(["--profile", "x", "-z"])).toEqual(["--profile", "x", "-z"]);
   });
 
   it("keeps verifier results tri-state", () => {

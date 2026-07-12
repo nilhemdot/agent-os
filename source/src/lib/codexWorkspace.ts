@@ -31,7 +31,12 @@ export const CODEX_SCRATCH_ROOT = process.env.AGENTIC_OS_CODEX_SCRATCH
 // loop" members hit). We pass verified flags (codex-cli 0.125+) per chosen mode:
 //   auto     — never prompt, but sandbox writes to the workspace (safe default)
 //   readonly — never prompt, read-only sandbox (Codex can plan/read, never writes)
-//   yolo     — bypass approvals AND sandbox (full access — back up first)
+//   yolo     — requested "full access". Codex's own flag for this is
+//              `--dangerously-bypass-approvals-and-sandbox`, which is listed in
+//              FORBIDDEN_AGENT_ARGS in runner.ts and rejected by validateAgentArgs.
+//              The validator is authoritative, so we never emit that flag: yolo
+//              runs with the same non-prompting workspace-write sandbox as auto.
+//              Full sandbox bypass is intentionally unavailable in M0.
 // NB: true interactive "ask" isn't possible through the browser pipe (no TTY),
 // so "readonly" is the safe stand-in for "let me see before it touches anything".
 export type CodexApprovalMode = "auto" | "readonly" | "yolo";
@@ -42,8 +47,12 @@ export function normalizeCodexApprovalMode(v: unknown): CodexApprovalMode {
 
 export function codexApprovalArgs(mode: unknown): string[] {
   switch (normalizeCodexApprovalMode(mode)) {
-    case "yolo":     return ["--dangerously-bypass-approvals-and-sandbox"];
     case "readonly": return ["-c", "approval_policy=never", "--sandbox", "read-only"];
+    // ponytail: yolo falls through to the safe workspace-write policy — the runner
+    // validator bans the real bypass flag. If a genuine opt-in bypass is ever needed,
+    // allowlist it in FORBIDDEN_AGENT_ARGS behind an explicit user flag; do NOT
+    // re-emit --dangerously-bypass-approvals-and-sandbox here (it would be rejected).
+    case "yolo":
     case "auto":
     default:         return ["-c", "approval_policy=never", "--sandbox", "workspace-write"];
   }
