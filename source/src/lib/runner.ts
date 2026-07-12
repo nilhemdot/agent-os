@@ -144,6 +144,7 @@ function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions)
   const billingEnv = { ...env,
     ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
     AGENTOS_ANTHROPIC_PLAN: process.env.AGENTOS_ANTHROPIC_PLAN,
+    AGENTOS_ALLOW_API_KEY: process.env.AGENTOS_ALLOW_API_KEY,
   } as NodeJS.ProcessEnv;
   const run = getRun(runId);
   const refusal = billingRefusal(agent, args, billingEnv, policy)
@@ -163,7 +164,10 @@ function killProcessTree(child: ChildProcessWithoutNullStreams) {
   } catch { try { child.kill("SIGKILL"); } catch {} }
 }
 
-function monitorChild(child: ChildProcessWithoutNullStreams, runId: string, policy: BreakerPolicy, secrets: string[], canary: string) {
+// Exported for parent-supervision tests: the breaker runs HERE, in the worker
+// process, never inside the agent child. On trip it writes the ledger first
+// (synchronous SQLite) and only then SIGKILLs the process tree.
+export function monitorChild(child: ChildProcessWithoutNullStreams, runId: string, policy: BreakerPolicy, secrets: string[], canary: string) {
   let stalled = false;
   let securityCarry = "";
   const breaker = new CircuitBreaker(policy, Date.now(), (reason) => { tripRun(runId, reason); killProcessTree(child); });
