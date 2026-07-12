@@ -1,1 +1,10 @@
-{"input_tokens":120,"output_tokens":40,"cache_read_input_tokens":20,"cost_usd":0.012}
+{"resourceMetrics":[{"scopeMetrics":[{"metrics":[
+  {"name":"claude_code.token.usage","sum":{"dataPoints":[
+    {"asInt":"120","attributes":[{"key":"type","value":{"stringValue":"input"}}]},
+    {"asInt":"40","attributes":[{"key":"type","value":{"stringValue":"output"}}]},
+    {"asInt":"20","attributes":[{"key":"type","value":{"stringValue":"cacheRead"}}]}
+  ]}},
+  {"name":"claude_code.cost.usage","sum":{"dataPoints":[
+    {"asDouble":0.012,"attributes":[{"key":"type","value":{"stringValue":"cost"}}]}
+  ]}}
+]}]}]}

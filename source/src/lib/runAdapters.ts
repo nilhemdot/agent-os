@@ -28,13 +28,40 @@ export function parseJsonlUsage(text: string): Usage {
   return total;
 }
 
+const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+// OTLP/JSON mirror of parseClaudeOtelProtobuf: walk resourceMetrics -> scopeMetrics ->
+// metrics, keep token.usage/cost.usage, then sum each sum.dataPoint by its `type` attribute.
 export function parseClaudeOtelJson(value: unknown): Usage {
-  const text = JSON.stringify(value);
-  const parsed = zero();
-  const metric = (name: string) => Number(new RegExp(`"${name}"\\s*:\\s*(\\d+(?:\\.\\d+)?)`).exec(text)?.[1] || 0);
-  parsed.inputTokens = metric("input_tokens"); parsed.outputTokens = metric("output_tokens");
-  parsed.cacheTokens = metric("cache_read_input_tokens"); parsed.costUsd = metric("cost_usd");
-  return parsed;
+  const usage = zero();
+  const root = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  for (const rm of asArray(root.resourceMetrics)) {
+    for (const sm of asArray((rm as Record<string, unknown>).scopeMetrics)) {
+      for (const metric of asArray((sm as Record<string, unknown>).metrics)) {
+        const m = metric as Record<string, unknown>;
+        const name = typeof m.name === "string" ? m.name : "";
+        if (!name.includes("token.usage") && !name.includes("cost.usage")) continue;
+        const aggregation = (m.sum ?? m.gauge) as Record<string, unknown> | undefined;
+        for (const dp of asArray(aggregation?.dataPoints)) {
+          const point = dp as Record<string, unknown>;
+          const num = point.asInt !== undefined ? Number(point.asInt)
+            : point.asDouble !== undefined ? Number(point.asDouble) : 0;
+          let kind = "";
+          for (const attr of asArray(point.attributes)) {
+            const a = attr as Record<string, unknown>;
+            if (a.key === "type" || a.key === "token_type" || a.key === "usage_type") {
+              kind = String((a.value as Record<string, unknown> | undefined)?.stringValue ?? "");
+            }
+          }
+          if (name.includes("cost.usage")) usage.costUsd += num;
+          else if (/cache/i.test(kind)) usage.cacheTokens += num;
+          else if (/output/i.test(kind)) usage.outputTokens += num;
+          else usage.inputTokens += num;
+        }
+      }
+    }
+  }
+  return usage;
 }
 
 type ProtoField = { no: number; wire: number; bytes?: Buffer; value?: bigint };

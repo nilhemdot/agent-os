@@ -1,7 +1,7 @@
 import { rmSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { appendRunEvent, budgetPrecheck, createRun, getRun, listRunEvents, reconcileLost, setBudgetLimit, tripRun } from "@/lib/ledger";
+import { appendRunEvent, budgetPrecheck, createRun, getRun, ledgerDb, listRunEvents, reconcileLost, setBudgetLimit, tripRun } from "@/lib/ledger";
 
 beforeAll(() => {
   process.env.AGENTOS_DB_PATH = path.join("/tmp", `agentos-ledger-${process.pid}.db`);
@@ -22,6 +22,30 @@ describe("M1 durable ledger", () => {
     const run = createRun({ agent: "codex", workspace: "/tmp" });
     appendRunEvent(run.id, "started");
     expect(reconcileLost(0)).toBeGreaterThan(0);
+    expect(getRun(run.id)?.status).toBe("worker_lost");
+    expect(listRunEvents(run.id).at(-1)?.type).toBe("worker_lost");
+  });
+
+  it("does not resurrect a terminal run when a stray started event arrives", () => {
+    const run = createRun({ agent: "codex", workspace: "/tmp" });
+    appendRunEvent(run.id, "started");
+    appendRunEvent(run.id, "completed");
+    const finishedAt = getRun(run.id)?.finished_at;
+    appendRunEvent(run.id, "started"); // late/duplicate event must not move it back to running
+    appendRunEvent(run.id, "usage", { inputTokens: 5, costUsd: 0.02 }); // accumulation stays unchanged
+    const after = getRun(run.id);
+    expect(after?.status).toBe("completed");
+    expect(after?.finished_at).toBe(finishedAt);
+    expect(after?.input_tokens).toBe(5);
+    expect(after?.cost_usd).toBe(0.02);
+  });
+
+  it("reconcile sweep marks a stale heartbeat lost while the worker stays alive", () => {
+    const run = createRun({ agent: "codex", workspace: "/tmp" });
+    appendRunEvent(run.id, "started");
+    const stale = new Date(Date.now() - 60_000).toISOString();
+    ledgerDb().prepare("UPDATE runs SET heartbeat_at=? WHERE id=?").run(stale, run.id);
+    expect(reconcileLost()).toBeGreaterThan(0); // default 30s cutoff, no restart involved
     expect(getRun(run.id)?.status).toBe("worker_lost");
     expect(listRunEvents(run.id).at(-1)?.type).toBe("worker_lost");
   });

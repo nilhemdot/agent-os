@@ -108,9 +108,11 @@ export function appendRunEvent(runId: string, type: string, payload: unknown = {
       .run(id, runId, seq, type, JSON.stringify(payload), now);
     const p = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
     const status = type === "started" ? "running" : type === "completed" ? "completed" : type === "failed" || type === "breaker_tripped" ? "failed" : type === "worker_lost" ? "worker_lost" : null;
-    db.prepare(`UPDATE runs SET status=COALESCE(?,status), updated_at=?,
-      started_at=CASE WHEN ?='running' THEN COALESCE(started_at,?) ELSE started_at END,
-      finished_at=CASE WHEN ? IN ('completed','failed','worker_lost') THEN ? ELSE finished_at END,
+    db.prepare(`UPDATE runs SET
+      status=CASE WHEN status IN ('completed','failed','worker_lost') THEN status ELSE COALESCE(?,status) END,
+      updated_at=?,
+      started_at=CASE WHEN status IN ('completed','failed','worker_lost') THEN started_at WHEN ?='running' THEN COALESCE(started_at,?) ELSE started_at END,
+      finished_at=CASE WHEN status IN ('completed','failed','worker_lost') THEN finished_at WHEN ? IN ('completed','failed','worker_lost') THEN ? ELSE finished_at END,
       input_tokens=input_tokens+?, output_tokens=output_tokens+?, cache_tokens=cache_tokens+?, cost_usd=cost_usd+?,
       tripped_reason=CASE WHEN ?='breaker_tripped' THEN ? ELSE tripped_reason END
       WHERE id=?`).run(status, now, status, now, status, now, Number(p.inputTokens || 0), Number(p.outputTokens || 0), Number(p.cacheTokens || 0), Number(p.costUsd || 0), type, String(p.trippedReason || ""), runId);

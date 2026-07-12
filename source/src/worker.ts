@@ -11,7 +11,7 @@ import { canaryForRun, containsSecret } from "./lib/credentialBroker";
 const workerId = `${os.hostname()}:${process.pid}`;
 let busy = false;
 
-createServer((req, res) => {
+const receiver = createServer((req, res) => {
   const signal = req.url?.split("/").pop() || "unknown";
   const runId = req.headers["x-agentos-run-id"];
   const chunks: Buffer[] = [];
@@ -37,7 +37,15 @@ createServer((req, res) => {
     }
     res.writeHead(200, { "content-type": "application/x-protobuf" }); res.end();
   });
-}).listen(4318, "127.0.0.1");
+});
+receiver.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EADDRINUSE") {
+    console.warn("OTLP receiver port 4318 already owned by another worker — continuing without receiver");
+    return;
+  }
+  throw error;
+});
+receiver.listen(4318, "127.0.0.1");
 
 async function tick() {
   if (busy) return;
@@ -77,6 +85,7 @@ async function importHistory() {
 async function main() {
   await importHistory();
   reconcileLost();
+  setInterval(() => reconcileLost(), 15_000);
   setInterval(() => void tick(), 500);
   void tick();
 }
