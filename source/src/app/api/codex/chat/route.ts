@@ -65,10 +65,10 @@ export async function POST(req: Request) {
   // Pin Codex's cwd to a scratch project so anything it writes (HTML, scripts,
   // generated assets) lands somewhere the Workspace tab can find. Same pattern
   // as the Free Claude Code chat endpoint.
-  let cwd: string | undefined;
+  let cwd: string;
   if (typeof body.project === "string" && /^[A-Za-z0-9_.-]+$/.test(body.project)) {
-    cwd = (await ensureCodexProject(body.project)) ?? undefined;
-  } else if (typeof body.cwd === "string") {
+    cwd = (await ensureCodexProject(body.project)) ?? path.join(CODEX_SCRATCH_ROOT, body.project);
+  } else if (typeof body.cwd === "string" && path.isAbsolute(body.cwd)) {
     cwd = body.cwd;
   } else {
     cwd = (await ensureCodexProject("codex-default")) ?? path.join(CODEX_SCRATCH_ROOT, "codex-default");

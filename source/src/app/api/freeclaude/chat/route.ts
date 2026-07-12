@@ -58,10 +58,10 @@ export async function POST(req: Request) {
   // Workspace tab can find. If the client passed `project: "name"`, we use
   // that. Otherwise the client may pass an explicit `cwd: "/abs/path"`.
   // Final fallback: a default `freeclaude-default` project.
-  let cwd: string | undefined;
+  let cwd: string;
   if (typeof body.project === "string" && /^[A-Za-z0-9_.-]+$/.test(body.project)) {
-    cwd = (await ensureProject(body.project)) ?? undefined;
-  } else if (typeof body.cwd === "string") {
+    cwd = (await ensureProject(body.project)) ?? path.join(FCC_SCRATCH_ROOT, body.project);
+  } else if (typeof body.cwd === "string" && path.isAbsolute(body.cwd)) {
     cwd = body.cwd;
   } else {
     cwd = (await ensureProject("freeclaude-default")) ?? path.join(FCC_SCRATCH_ROOT, "freeclaude-default");

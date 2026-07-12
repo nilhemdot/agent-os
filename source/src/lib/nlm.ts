@@ -4,6 +4,7 @@
 import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { agentEnv } from "@/lib/runner";
 
 // The dev server is often launched detached (launchd) with a minimal PATH that
 // excludes ~/.local/bin (where `nlm` lives). Prepend the usual bin dirs.
@@ -19,7 +20,7 @@ export const SHORTS_CACHE = path.join(os.homedir(), ".agentic-os", "notebooklm-s
 export function runNlm(args: string[], timeoutMs = 60_000): Promise<{ ok: boolean; stdout: string; stderr: string; code: number }> {
   return new Promise((resolve) => {
     let child;
-    try { child = spawn("nlm", args, { env: { ...process.env, PATH: BIN_PATH, NO_COLOR: "1" } }); }
+    try { child = spawn("nlm", args, { cwd: process.cwd(), env: agentEnv({ PATH: BIN_PATH }) }); }
     catch (e) { return resolve({ ok: false, stdout: "", stderr: String(e), code: -1 }); }
     let stdout = "", stderr = "";
     const t = setTimeout(() => { try { child.kill("SIGKILL"); } catch {} }, timeoutMs);

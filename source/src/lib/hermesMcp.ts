@@ -94,7 +94,7 @@ function extractAuth(authField: unknown): { type?: string; provider?: string } {
 // then slice each row by those widths. Robust to descriptions that contain
 // multiple spaces.
 export async function listCatalog(): Promise<CatalogEntry[]> {
-  const res = await run("hermes", ["mcp", "catalog"], { timeoutMs: 10000 });
+  const res = await run("hermes", ["mcp", "catalog"], { cwd: process.cwd(), timeoutMs: 10000 });
   if (!res.ok) return [];
   const lines = res.stdout.split("\n");
   // Find the rule line (the one of dashes).
@@ -229,7 +229,7 @@ export async function uninstall(name: string): Promise<{ ok: boolean; output: st
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
     return { ok: false, output: "", error: "invalid mcp name" };
   }
-  const res = await run("hermes", ["mcp", "remove", name], { timeoutMs: 15000 });
+  const res = await run("hermes", ["mcp", "remove", name], { cwd: process.cwd(), timeoutMs: 15000 });
   return { ok: res.ok, output: res.stdout || res.stderr, error: res.ok ? undefined : (res.stderr || `exit ${res.code}`) };
 }
 
@@ -457,7 +457,7 @@ export async function addCustomServer(spec: AddCustomSpec): Promise<{ ok: boolea
     }
   }
 
-  const res = await run("hermes", argList, { timeoutMs: 30000 });
+  const res = await run("hermes", argList, { cwd: process.cwd(), timeoutMs: 30000 });
   return { ok: res.ok, output: res.stdout || res.stderr, error: res.ok ? undefined : (res.stderr || `exit ${res.code}`) };
 }
 

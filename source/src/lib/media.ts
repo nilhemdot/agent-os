@@ -109,7 +109,7 @@ const ANY_MEDIA_EXT = /\.(png|jpg|jpeg|webp|gif|mp4|webm|mov|mp3|wav|m4a|ogg|aac
 export function isAllowedMediaPath(p: string): boolean {
   const abs = path.resolve(p);
   if (!ANY_MEDIA_EXT.test(abs)) return false;
-  // Must be inside HOME (with separator to prevent /Users/juliangoldie-other style escape).
+  // Must be inside HOME (with a separator so similarly prefixed paths cannot escape).
   if (abs !== HOME && !abs.startsWith(HOME + path.sep)) return false;
   // Refuse blocked sensitive subdirs.
   for (const blocked of BLOCKED_SUBPATHS) {

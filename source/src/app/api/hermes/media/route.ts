@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const wrapped = craftPrompt(kind as MediaKind, prompt);
 
   // Hermes -z runs a single non-interactive query. Image/video can take a while.
-  const out = await run("hermes", ["-z", wrapped], { timeoutMs: 240_000 });
+  const out = await run("hermes", ["-z", wrapped], { cwd: process.cwd(), timeoutMs: 240_000 });
   const text = out.stdout.replace(/\[[0-9;]*m/g, "").trim();
   const newFiles = await diff(kind as MediaKind, before);
   const textPaths = extractPathsFromText(text, kind as MediaKind);

@@ -21,6 +21,6 @@ export async function GET(req: Request) {
   const action = (url.searchParams.get("action") ?? "status") as Action;
   const args = COMMANDS[action];
   if (!args) return NextResponse.json({ error: "unknown action" }, { status: 400 });
-  const out = await run("hermes", args, { timeoutMs: 10000 });
+  const out = await run("hermes", args, { cwd: process.cwd(), timeoutMs: 10000 });
   return NextResponse.json({ action, ...out });
 }

@@ -42,16 +42,21 @@ function findChrome(): string | null {
 
 // RENDER VERIFICATION — actually open the build in a headless browser and catch
 // JS/console errors or a blank render. This is what a text judge can't do: tell
-// whether the thing genuinely WORKS. Returns { ok, errors }.
-async function renderCheck(html: string, signal?: AbortSignal): Promise<{ ok: boolean; errors: string[] }> {
+// whether the thing genuinely WORKS. Unavailable verification never counts as a pass.
+export type VerificationResult = "passed" | "failed" | "unavailable";
+export function verificationResult(available: boolean, errors: string[]): VerificationResult {
+  return !available ? "unavailable" : errors.length ? "failed" : "passed";
+}
+
+async function renderCheck(html: string, signal?: AbortSignal): Promise<{ result: VerificationResult; errors: string[] }> {
   const bin = findChrome();
-  if (!bin) return { ok: true, errors: [] }; // no browser → can't verify, don't block
+  if (!bin) return { result: "unavailable", errors: ["Browser verification unavailable."] };
   const tmp = path.join(os.tmpdir(), `loop-rc-${Date.now()}-${process.pid}.html`);
   try {
     await writeFile(tmp, html, "utf8");
     const dom = await new Promise<{ out: string; err: string }>((resolve) => {
       const child = spawn(bin, [
-        "--headless", "--disable-gpu", "--no-sandbox", "--hide-scrollbars",
+        "--headless", "--disable-gpu", "--hide-scrollbars",
         "--enable-logging=stderr", "--v=1", "--virtual-time-budget=3500",
         "--dump-dom", `file://${tmp}`,
       ], { stdio: ["ignore", "pipe", "pipe"] });
@@ -78,9 +83,9 @@ async function renderCheck(html: string, signal?: AbortSignal): Promise<{ ok: bo
     const hasCanvasOrSvg = /<canvas|<svg/i.test(dom.out);
     const visibleText = dom.out.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
     if (!hasCanvasOrSvg && visibleText.length < 20) errors.push("It renders blank/empty — nothing visible on the page.");
-    return { ok: errors.length === 0, errors };
+    return { result: verificationResult(true, errors), errors };
   } catch {
-    return { ok: true, errors: [] }; // verification failure shouldn't block the loop
+    return { result: "unavailable", errors: ["Browser verification failed to run."] };
   } finally {
     try { await rm(tmp, { force: true }); } catch { /* ignore */ }
   }
@@ -137,7 +142,7 @@ export async function POST(req: Request) {
         if (html) {
           send({ t: "iter", n, step: "verify", detail: "Running it in a real browser…" });
           const rc = await renderCheck(html, req.signal);
-          if (!rc.ok) {
+          if (rc.result !== "passed") {
             send({ t: "verdict", n, pass: false, score: 0, issues: rc.errors, summary: "It doesn't run cleanly in the browser — fixing the errors and trying again." });
             issues = rc.errors;
             stall = 0 <= lastScore ? stall + 1 : 0; lastScore = 0;

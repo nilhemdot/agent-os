@@ -703,7 +703,7 @@ function TaskDrawer({ taskId, boardSlug, detail, assignees, busy, onClose, onAct
           )}
           {t.workspace_path && (
             <span className="font-[var(--font-geist-mono)] text-[10px] text-[var(--fg-dimmer)] truncate" title={t.workspace_path}>
-              ws: {t.workspace_path.replace(process.env.HOME ?? "/Users/juliangoldie", "~")}
+              ws: {t.workspace_path.replace(/^\/(?:Users|home)\/[^/]+/, "~")}
             </span>
           )}
         </div>
@@ -822,7 +822,7 @@ function TaskDrawer({ taskId, boardSlug, detail, assignees, busy, onClose, onAct
           </div>
           {wsRoot && (
             <div className="flex items-center gap-1.5 mb-2 text-[10.5px] font-[var(--font-geist-mono)] text-[var(--fg-dimmer)]">
-              <span className="truncate" title={wsRoot}>{wsRoot.replace("/Users/juliangoldie", "~")}</span>
+              <span className="truncate" title={wsRoot}>{wsRoot.replace(/^\/(?:Users|home)\/[^/]+/, "~")}</span>
               <button
                 onClick={() => navigator.clipboard?.writeText(wsRoot)}
                 className="opacity-60 hover:opacity-100 transition shrink-0"

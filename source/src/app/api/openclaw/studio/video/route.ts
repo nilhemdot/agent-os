@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   }
 
   // Video generation takes longer — 4 minute timeout
-  const out = await run("openclaw", args, { timeoutMs: 240_000 });
+  const out = await run("openclaw", args, { cwd: process.cwd(), timeoutMs: 240_000 });
   const firstBrace = out.stdout.indexOf("{");
   let payload: { ok?: boolean; provider?: string; model?: string; outputs?: { path: string; mimeType: string; size: number; width?: number; height?: number; duration?: number }[] } = {};
   if (firstBrace !== -1) {

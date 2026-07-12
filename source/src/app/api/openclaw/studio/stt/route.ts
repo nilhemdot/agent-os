@@ -40,7 +40,7 @@ async function transcribeWith(model: string, audioPath: string, timeoutMs: numbe
     "--model", model,
     "--file", audioPath,
     "--json",
-  ], { timeoutMs });
+  ], { cwd: process.cwd(), timeoutMs });
   const firstBrace = out.stdout.indexOf("{");
   let text = "";
   if (firstBrace !== -1) {

@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       if (kind === "image") {
         await mkdir(dirs.image, { recursive: true });
         const outPath = path.join(dirs.image, `${ts}-grok-${slug}.jpg`);
-        const out = await run("openclaw", ["infer", "image", "generate", "--model", "xai/grok-imagine-image", "--prompt", prompt, "--output", outPath, "--json", "--aspect-ratio", "16:9"], { timeoutMs: 120_000 });
+        const out = await run("openclaw", ["infer", "image", "generate", "--model", "xai/grok-imagine-image", "--prompt", prompt, "--output", outPath, "--json", "--aspect-ratio", "16:9"], { cwd: process.cwd(), timeoutMs: 120_000 });
         const f = parseOpenclawFile(out.stdout) ?? (existsSync(outPath) ? outPath : null);
         if (!f) return NextResponse.json({ error: "Grok image failed", detail: (out.stderr || out.stdout).slice(-400) }, { status: 502 });
         const name = path.basename(f);
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       if (kind === "video") {
         await mkdir(dirs.video, { recursive: true });
         const outPath = path.join(dirs.video, `${ts}-grok-${slug}.mp4`);
-        const out = await run("openclaw", ["infer", "video", "generate", "--model", "xai/grok-imagine-video", "--prompt", prompt, "--output", outPath, "--json"], { timeoutMs: 240_000 });
+        const out = await run("openclaw", ["infer", "video", "generate", "--model", "xai/grok-imagine-video", "--prompt", prompt, "--output", outPath, "--json"], { cwd: process.cwd(), timeoutMs: 240_000 });
         const f = parseOpenclawFile(out.stdout) ?? (existsSync(outPath) ? outPath : null);
         if (!f) return NextResponse.json({ error: "Grok video failed", detail: (out.stderr || out.stdout).slice(-400) }, { status: 502 });
         const name = path.basename(f);
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
         const v = typeof voiceId === "string" && XAI_VOICES.has(voiceId) ? voiceId : "eve";
         await mkdir(dirs.voice, { recursive: true });
         const outPath = path.join(dirs.voice, `${ts}-grok-${v}-${slug}.mp3`);
-        const out = await run("openclaw", ["infer", "tts", "convert", "--text", prompt, "--voice", v, "--output", outPath, "--json"], { timeoutMs: 60_000 });
+        const out = await run("openclaw", ["infer", "tts", "convert", "--text", prompt, "--voice", v, "--output", outPath, "--json"], { cwd: process.cwd(), timeoutMs: 60_000 });
         const f = parseOpenclawFile(out.stdout) ?? (existsSync(outPath) ? outPath : null);
         if (!f) return NextResponse.json({ error: "Grok voice failed", detail: (out.stderr || out.stdout).slice(-400) }, { status: 502 });
         const name = path.basename(f);

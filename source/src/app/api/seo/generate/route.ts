@@ -62,12 +62,8 @@ export async function POST(req: Request) {
     ``,
     `## What to do now`,
     ``,
-    `1. Use the Write tool to create 5 unique long-form SEO articles at these exact paths:`,
-    `   - /Users/juliangoldie/AIProfitBoardroom.com/src/blog/posts/${slug}.md`,
-    `   - /Users/juliangoldie/AIProfitBoardroom-main/src/blog/posts/${slug}.md`,
-    `   - /Users/juliangoldie/juliangoldieaiautomation/src/blog/posts/${slug}.md`,
-    `   - /Users/juliangoldie/aisuccesslab/src/blog/posts/${slug}.md`,
-    `   - /Users/juliangoldie/aimoneylab/src/blog/posts/${slug}.md`,
+    `1. Use the Write tool to create ${SITES.length} unique long-form SEO articles at these exact paths:`,
+    ...SITES.map((site) => `   - ${site.postsDir}/${slug}.md`),
     `2. Each article must follow the skill: unique CTR-optimised title, unique opening, unique structure, frontmatter, multi-video embeds, 4 CTAs, schema markup, author bio, comparison tables. UK English.`,
     `3. Do NOT run any deploy commands — the dashboard handles deploy. Just write the 5 files.`,
     `4. When finished, print a short summary listing each path you wrote and its title.`,
@@ -81,8 +77,7 @@ export async function POST(req: Request) {
     "--output-format=stream-json",
     "--include-partial-messages",
     "--verbose",
-    "--dangerously-skip-permissions",
-  ], { input: prompt });
+  ], { cwd: process.cwd(), input: prompt });
 
   // Sniff Claude's NDJSON for Write tool calls so we can log which articles landed.
   let buf = "";

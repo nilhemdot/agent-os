@@ -32,14 +32,14 @@ export async function POST(req: Request) {
 
   const created = await run("hermes", ["kanban", "--board", BOARD, "create", title,
     "--assignee", "game-dev", "--workspace", `dir:${GAMES_DIR}`, "--body", taskBody],
-    { timeoutMs: 30_000 });
+    { cwd: process.cwd(), timeoutMs: 30_000 });
   const taskId = created.stdout.match(/t_[a-f0-9]+/)?.[0] ?? null;
   if (!created.ok || !taskId) {
     return NextResponse.json({ ok: false, error: created.stderr.slice(0, 300) || "could not create the task" }, { status: 500 });
   }
 
   // Fire the dispatcher so the agent starts immediately (gateway also ticks every 60s).
-  run("hermes", ["kanban", "--board", BOARD, "dispatch", "--max", "3", "--json"], { timeoutMs: 30_000 }).catch(() => {});
+  run("hermes", ["kanban", "--board", BOARD, "dispatch", "--max", "3", "--json"], { cwd: process.cwd(), timeoutMs: 30_000 }).catch(() => {});
 
   return NextResponse.json({ ok: true, taskId, file });
 }

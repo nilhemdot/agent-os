@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     // Non-reasoning model is 5-6s instead of 10-13s for grok-4.3. Perfect for voice.
     "--prompt", prompt,
     "--json",
-  ], { timeoutMs: 60_000 });
+  ], { cwd: process.cwd(), timeoutMs: 60_000 });
 
   const firstBrace = out.stdout.indexOf("{");
   let text = "";

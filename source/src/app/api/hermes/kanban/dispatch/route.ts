@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const board = url.searchParams.get("board");
   const baseArgs = board && /^[a-z0-9_-]{1,64}$/.test(board) ? ["--board", board] : [];
 
-  const out = await run("hermes", ["kanban", ...baseArgs, "dispatch", "--max", "10", "--json"], { timeoutMs: 30_000 });
+  const out = await run("hermes", ["kanban", ...baseArgs, "dispatch", "--max", "10", "--json"], { cwd: process.cwd(), timeoutMs: 30_000 });
   let dispatch: unknown = null;
   try { dispatch = JSON.parse(out.stdout); } catch {}
   return NextResponse.json({

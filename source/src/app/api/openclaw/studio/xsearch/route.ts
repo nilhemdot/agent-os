@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     args.push("--limit", "15");
   }
 
-  const out = await run("openclaw", args, { timeoutMs: 60_000 });
+  const out = await run("openclaw", args, { cwd: process.cwd(), timeoutMs: 60_000 });
   const firstBrace = out.stdout.indexOf("{");
   // Grok shape (from `openclaw infer web search --provider grok --json`):
   //   { ok, outputs: [ { result: { query, provider, model, tookMs, content, citations: string[] } } ] }

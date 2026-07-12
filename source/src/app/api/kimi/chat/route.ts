@@ -75,10 +75,10 @@ export async function POST(req: Request) {
 
   // Pin Kimi's cwd to a scratch project so anything it writes (HTML, scripts,
   // assets) lands somewhere the Workspace tab + preview route can serve.
-  let cwd: string | undefined;
+  let cwd: string;
   if (typeof body.project === "string" && /^[A-Za-z0-9_.-]+$/.test(body.project)) {
-    cwd = (await ensureKimiProject(body.project)) ?? undefined;
-  } else if (typeof body.cwd === "string") {
+    cwd = (await ensureKimiProject(body.project)) ?? path.join(KIMI_SCRATCH_ROOT, body.project);
+  } else if (typeof body.cwd === "string" && path.isAbsolute(body.cwd)) {
     cwd = body.cwd;
   } else {
     cwd = (await ensureKimiProject("kimi-default")) ?? path.join(KIMI_SCRATCH_ROOT, "kimi-default");

@@ -40,7 +40,7 @@ function buildPromptWithHistory(history: ChatMsg[], current: string): string {
 }
 
 export async function POST(req: Request) {
-  const { prompt, dangerouslySkipPermissions, history } = await req.json();
+  const { prompt, history } = await req.json();
   if (typeof prompt !== "string" || prompt.length === 0) {
     return NextResponse.json({ error: "missing prompt" }, { status: 400 });
   }
@@ -49,9 +49,8 @@ export async function POST(req: Request) {
   }
 
   const args: string[] = ["-p", buildPromptWithHistory(history, prompt)];
-  if (dangerouslySkipPermissions === true) args.push("--dangerously-skip-permissions");
 
-  const out = await run("antigravity", args, { timeoutMs: TIMEOUT_MS });
+  const out = await run("antigravity", args, { cwd: process.cwd(), timeoutMs: TIMEOUT_MS });
   const text = out.stdout.replace(ANSI_STRIP, "").trim();
   const stderrClean = out.stderr.replace(ANSI_STRIP, "").trim();
 

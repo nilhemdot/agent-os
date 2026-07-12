@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { config } from "@/lib/config";
+import { spawnStream } from "@/lib/runner";
 import {
   listGoals, createGoal, updateGoal, deleteGoal, stopGoal, getGoal, readGoalLog,
   recoverOrphans,
@@ -42,37 +42,24 @@ export async function POST(req: Request) {
   const title = String(body.title ?? "");
   const prompt = String(body.prompt ?? "");
   const cwd = typeof body.cwd === "string" && body.cwd ? body.cwd : undefined;
+  const yolo = body.yolo === true;
   if (!prompt.trim()) return NextResponse.json({ error: "prompt required" }, { status: 400 });
 
   const goal = await createGoal(title, prompt, cwd);
 
-  // Launch Hermes in autonomous mode. -Q is quiet (programmatic), --yolo skips
-  // safety prompts, --accept-hooks auto-approves shell hooks. --max-turns caps
-  // the loop so it can't run forever.
+  // Launch Hermes in autonomous mode. Unsafe approval bypass is opt-in.
   const log = createWriteStream(goal.logFile, { flags: "a" });
   log.write(`\n=== START ${new Date().toISOString()} · ${goal.id} ===\n${goal.prompt}\n\n`);
 
-  const child = spawn(config.hermes, [
+  const args = [
     "chat",
     "-q", goal.prompt,
     "-Q",
-    "--yolo",
-    "--accept-hooks",
+    ...(yolo ? ["--yolo", "--accept-hooks"] : []),
     "--max-turns", "50",
     "--checkpoints",
-  ], {
-    cwd: goal.cwd,
-    env: {
-      ...process.env,
-      PATH: process.env.PATH ?? "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin",
-      HOME: process.env.HOME ?? "",
-      SHELL: process.env.SHELL ?? "/bin/zsh",
-      NO_COLOR: "1",
-      HERMES_ACCEPT_HOOKS: "1",
-    },
-    detached: true,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  ];
+  const child = spawnStream("hermes", args, { cwd: goal.cwd, detached: true, extraEnv: yolo ? { HERMES_ACCEPT_HOOKS: "1" } : {} });
 
   child.stdout.on("data", (b: Buffer) => {
     log.write(b);

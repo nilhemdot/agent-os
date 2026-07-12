@@ -43,7 +43,7 @@ function buildPromptWithHistory(history: ChatMsg[], current: string): string {
 }
 
 export async function POST(req: Request) {
-  const { prompt, profile, history } = await req.json();
+  const { prompt, profile, history, yolo } = await req.json();
   if (typeof prompt !== "string" || prompt.length === 0) {
     return NextResponse.json({ error: "missing prompt" }, { status: 400 });
   }
@@ -56,10 +56,7 @@ export async function POST(req: Request) {
   }
 
   // hermes -z PROMPT  — single-query non-interactive mode.
-  // --yolo + --accept-hooks are ESSENTIAL for headless/VPS runs: without them,
-  // Hermes blocks on an interactive approval/hook-confirmation prompt it can't
-  // display in oneshot mode, and the dashboard just sees blank output. (Matches
-  // the flags Goal Mode already uses.) If the reply is STILL blank after this,
+  // Unsafe approval bypass is opt-in. If the reply is blank,
   // it's almost always auth — run `hermes status` and check the provider shows
   // a ✓ for its API key.
   // A stale/deleted profile selection (e.g. a "kimi" pill left in localStorage from an
@@ -71,7 +68,8 @@ export async function POST(req: Request) {
     : [];
   // Pack the recent conversation in so follow-ups keep context (no more amnesia).
   const fullPrompt = buildPromptWithHistory(history, prompt);
-  const out = await run("hermes", [...profileArgs, "-z", fullPrompt, "--yolo", "--accept-hooks"], { timeoutMs: TIMEOUT_MS });
+  const unsafeArgs = yolo === true ? ["--yolo", "--accept-hooks"] : [];
+  const out = await run("hermes", [...profileArgs, "-z", fullPrompt, ...unsafeArgs], { cwd: hermesHome(), timeoutMs: TIMEOUT_MS });
 
   const text = out.stdout.replace(ANSI_STRIP, "").trim();
   const stderrClean = out.stderr.replace(ANSI_STRIP, "").trim();

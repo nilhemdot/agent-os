@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
-import { config } from "@/lib/config";
+import { config, hermesHome } from "@/lib/config";
+import { agentEnv } from "@/lib/runner";
 
 // Lifecycle for the Hermes web dashboard (FastAPI on :9119). Agent OS embeds it
 // in the Hermes → Manage tab so you can configure model/provider, API keys,
@@ -40,7 +41,8 @@ export async function POST() {
     const child = spawn(bin, ["dashboard", "--no-open", "--port", "9119"], {
       detached: true,
       stdio: "ignore",
-      env: { ...process.env },
+      cwd: hermesHome(),
+      env: agentEnv(),
     });
     child.unref();
   } catch (e) {
