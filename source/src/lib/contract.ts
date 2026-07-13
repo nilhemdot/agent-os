@@ -82,6 +82,14 @@ export function listCriteria(runId: string): CriterionRow[] {
   return ledgerDb().prepare("SELECT * FROM criteria WHERE run_id=? ORDER BY ordinal").all(runId) as unknown as CriterionRow[];
 }
 
+// M5.2 — a retry/fork child inherits the parent's contract. Copies criteria as fresh
+// 'unmet' rows (verification starts over); no-op when the parent has none.
+export function copyCriteria(fromRunId: string, toRunId: string): CriterionRow[] {
+  const source = listCriteria(fromRunId);
+  if (source.length === 0) return [];
+  return persistCriteria(toRunId, source.map((c) => ({ kind: c.kind, ears_text: c.ears_text })));
+}
+
 export function getCriterion(id: string): CriterionRow | null {
   return (ledgerDb().prepare("SELECT * FROM criteria WHERE id=?").get(id) as unknown as CriterionRow | undefined) || null;
 }
@@ -191,10 +199,13 @@ export function listDecisions(runId: string): DecisionRow[] {
 
 // ── Artifacts + evidence linker (M4.4) ───────────────────────────────────────
 
-export function recordArtifact(runId: string, kind: string, ref: string): string {
+// `body` (M5.1) is the optional captured content of the artifact — e.g. the unified-diff
+// hunk text for a `kind:"diff"` artifact whose `ref` is the file path. Omit it and the
+// review surface renders the ref with a "hunk body not captured" fallback.
+export function recordArtifact(runId: string, kind: string, ref: string, body?: string): string {
   const id = randomUUID();
-  ledgerDb().prepare("INSERT INTO artifacts(id,run_id,kind,ref,created_at) VALUES (?,?,?,?,?)")
-    .run(id, runId, kind, ref, new Date().toISOString());
+  ledgerDb().prepare("INSERT INTO artifacts(id,run_id,kind,ref,body,created_at) VALUES (?,?,?,?,?,?)")
+    .run(id, runId, kind, ref, body ?? null, new Date().toISOString());
   return id;
 }
 
@@ -231,6 +242,25 @@ export function detectScopeExpansion(diffPaths: readonly string[], linkedPaths: 
   const linked = linkedPaths.map(norm);
   const covered = (p: string) => linked.some((l) => l === p || p.startsWith(l + "/"));
   return diffPaths.map(norm).filter((p) => p && !covered(p));
+}
+
+// M5.1: which of a run's criteria cover a given file path — the inverse of the
+// scope detector, reusing its EXACT matching rule. A criterion covers the path
+// when one of its linked-evidence refs is that file or a directory ancestor of
+// it, i.e. detectScopeExpansion([path], thatCriterionsRefs) comes back empty.
+// A path no criterion covers gets an empty array — that IS scope expansion.
+export function criteriaCoveringPath(runId: string, filePath: string): string[] {
+  const rows = ledgerDb().prepare(
+    `SELECT c.id AS criterion_id, a.ref AS ref FROM evidence_links e
+     JOIN artifacts a ON a.id=e.artifact_id
+     JOIN criteria c ON c.id=e.criterion_id WHERE c.run_id=?`).all(runId) as Array<{ criterion_id: string; ref: string }>;
+  const refsByCriterion = new Map<string, string[]>();
+  for (const r of rows) refsByCriterion.set(r.criterion_id, [...(refsByCriterion.get(r.criterion_id) ?? []), r.ref]);
+  const out: string[] = [];
+  for (const [criterionId, refs] of refsByCriterion) {
+    if (detectScopeExpansion([filePath], refs).length === 0) out.push(criterionId);
+  }
+  return out;
 }
 
 // Wired call site: compute uncovered diff paths for a run against its linked

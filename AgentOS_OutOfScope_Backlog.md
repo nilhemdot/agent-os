@@ -1,11 +1,11 @@
 # AgentOS — Out-of-Scope & Deferred Backlog
 
-Collected from milestones M0–M3 (Plan v3 build, branch `m0-security-patch`). Two kinds of entry:
+Collected from milestones M0–M6 (Plan v3 build, branch `m0-security-patch`). Two kinds of entry:
 
 - **Kill-list / plan-scoped exclusions** — deliberately NOT built per the plan's kill list. Do not revisit without a decision.
 - **Follow-ups & deferred hardening** — real work surfaced during implementation/verification, punted to a later milestone or a backlog. Each carries a severity and a suggested home.
 
-Last updated: 2026-07-12.
+Last updated: 2026-07-13.
 
 ---
 
@@ -136,13 +136,81 @@ Codex-added `eslint.config.mjs` matches `**/*.ts,tsx` with default espree parser
 
 ---
 
+## 8. M5 deferred findings — review surface & checkpoints
+
+**Closure note.** M5 closed 2026-07-13; M6 core (git-ref checkpoints, worktree-first restore, retry/fork/restore verbs) pulled forward into M5 by user decision.
+
+**M5-1 — `isWorkingTreeDirty` fails open when `git status` errors (`checkpoints.ts:44`) (LOW).**
+Unreachable via UI (destructive path always sends force). Flip to fail-closed during M8 hardening.
+→ **Home: M8 hardening.**
+
+**M5-2 — No `--` separator before git positional args (sha/paths) in `checkpoints.ts` (LOW).**
+Defense-in-depth; values are DB-sourced today.
+→ **Home: M8 hardening.**
+
+**M5-3 — `hashAction` normalization is shallow (LOW, fails safe).**
+Arrays sorted but not deduped; command hashed as an opaque string (whitespace variants hash differently). Fail-safe: over-prompts, never under-authorizes.
+→ **Home: backlog.**
+
+**M5-4 — `listTriage` recency window (20) can hide an old pending-approval run (LOW).**
+Push the pending filter into the SQL `WHERE` when run volume grows.
+→ **Home: backlog (when run volume grows).**
+
+**M5-5 — `/runs` triage index has no nav link anywhere (LOW).**
+Reachable only by direct URL. Add an entry when touching the shell UI.
+→ **Home: next shell-UI change.**
+
+**M5-6 — Review page doesn't surface `parent_run_id` lineage / checkpoint list for retried-forked children (LOW).**
+Nice-to-have for triage.
+→ **Home: backlog.**
+
+**M5-7 — `consumeGrant` execution gate has no production caller yet (LOW).**
+Executor wiring lands when action re-execution ships.
+→ **Home: action re-execution milestone.**
+
+---
+
+## 9. M6 deferred findings — checkpoints / restore / workspace isolation (design pass, 2026-07-13)
+
+**Closure note.** M6 closed 2026-07-13, all seven items verified PASS.
+
+**M6-1 — Distinct claude-native checkpoint id deferred (LOW, per plan R2).**
+Deferred per plan R2 ("record which checkpoint was used over implement"). `session_id` already captured as `external_run_id` and emitted as a `native_checkpoint` event. Revisit when the Claude Code changelog exposes a stable checkpoint id in stream-json.
+→ **Home: revisit on Claude Code stream-json checkpoint-id support.**
+
+**M6-2 — Ref pruning makes commits unreachable but AgentOS never forces `git gc` (LOW, deliberate).**
+Reclamation left to git auto-gc; forcing gc in user repos is invasive.
+→ **Home: accepted (git auto-gc).**
+
+**M6-3 — `allocatePort` bind-then-release has a TOCTOU window (LOW).**
+Acceptable for the single-worker loop. Add a DB port-lease table if concurrent workers land.
+→ **Home: concurrent-worker milestone.**
+
+**M6-4 — fs-mode checkpoints (non-git workspaces): 512MiB hard cap (LOW).**
+Loud `checkpoint_unavailable`; ignore-set mirrors runner `SCAN_SKIP` — no partial silent snapshots. Larger workspaces stay uncheckpointable until a streaming/tar design is justified.
+→ **Home: accepted ceiling; streaming/tar design if justified.**
+
+**M6-5 — fs-checkpoint content hashes stored but not verified at restore time (LOW).**
+Snapshot content hashes are recorded but not re-checked when a fs-mode checkpoint is restored. Add an integrity gate on `~/.agentic-os` snapshot reads.
+→ **Home: M8 hardening.**
+
+**M6-6 — `checkpointStorageSummary` spawns git per workspace on `/runs` GET (LOW).**
+Disk-usage panel shells out to git for each workspace on every `/runs` GET. Cache or revalidate the boundary if the page gets hot.
+→ **Home: backlog (if `/runs` gets hot).**
+
+**M6-7 — `m6-runner-env` real-spawn test can flake under full concurrent vitest load (LOW).**
+OS port/spawn timing, not product logic. Serialize the test or add an `allocatePort` retry if it recurs.
+→ **Home: backlog (if it recurs).**
+
+---
+
 ## Severity roll-up
 
 | Severity | Items |
 |---|---|
 | HIGH | R1 (runner chokepoint partial), H7 (no egress tap — inherent) |
 | MEDIUM | H1, H2 (env leakage), H9 (Chrome cross-platform), H10 (DPAPI unverified), H14 (OTLP temporality) |
-| LOW | H3, H4, H5, H6, H8, H11, H12, H13 |
+| LOW | H3, H4, H5, H6, H8, H11, H12, H13, M5-1..M5-7, M6-1..M6-7 |
 | Tooling | D1 (ESLint) |
 
 Nothing here blocks M0–M3 exit gates (all verified independently). These are the accumulated "noticed but not in this milestone's scope" items, homed to the milestone or backlog where they belong.

@@ -1,15 +1,27 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { config } from "./config";
 import { appendRunEvent, budgetPrecheck, createRun, getRun, runPolicy, tripRun, updateRunMetadata } from "./ledger";
 import { parseJsonlUsage } from "./runAdapters";
 import { billingRefusal, breakerPolicy, CircuitBreaker, type BreakerPolicy } from "./circuitBreaker";
 import { scanWorkspaceConfig } from "./configFirewall";
-import { listCriteria } from "./contract";
+import { criteriaCoveringPath, linkEvidence, listCriteria, recordArtifact } from "./contract";
 import { canaryForRun, containsSecret, redactText, RedactTransform, resolveSecretRefs } from "./credentialBroker";
 import { recordSecretUsage, setRunSandbox } from "./ledger";
 import { selectSandbox } from "./sandbox";
+import { recordActionRequest } from "./actions";
+import { createCheckpoint } from "./checkpoints";
+
+// M5.3 producer helper — a policy rule that BLOCKS an action emits a 'policy_denied'
+// run_event so reviewData's policy_denials consumer surfaces it. `rule` is the policy
+// family (text before the first ':' in the refusal), e.g. "sandbox", "billing_guard",
+// "budget"; `reason` carries the full human-readable refusal.
+function policyDenied(runId: string, reason: string): void {
+  const rule = reason.split(":")[0]?.trim() || null;
+  appendRunEvent(runId, "policy_denied", { rule, reason });
+}
 
 // "fcc" is the Free Claude Code agent — it runs the same `claude` CLI but with
 // the local fcc-server proxy env vars injected, routing requests to OpenRouter
@@ -80,6 +92,37 @@ export function agentEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
     FORCE_COLOR: "0",
     ...extra,
   } as unknown as NodeJS.ProcessEnv;
+}
+
+// M6.4 — hand the agent a free localhost port via $AGENTOS_PORT. Bind :0, read the
+// kernel-assigned port, release it, hand it back. Best-effort: the run never blocks on this.
+// ponytail: bind-release has a TOCTOU window; add a DB port-lease table if concurrent workers land.
+export function allocatePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = address && typeof address === "object" ? address.port : 0;
+      server.close(() => (port ? resolve(port) : reject(new Error("no port assigned"))));
+    });
+  });
+}
+
+// M6.4 — pure env merge so run()'s port injection is testable without spawning. A null port
+// (allocation failed) leaves the env untouched; the run proceeds without the var.
+export function withPortEnv(extraEnv: Record<string, string> | undefined, port: number | null): Record<string, string> {
+  return port == null ? { ...extraEnv } : { ...extraEnv, AGENTOS_PORT: String(port) };
+}
+
+// M6.1 — decide whether a finished run has a native (adapter-owned) checkpoint to record.
+// Record-only; restore paths are unchanged. Only the claude adapter exposes a resumable
+// session id today (parsing distinct native checkpoint ids is deferred per plan R2).
+export function nativeCheckpointEvent(
+  agent: AgentName, externalRunId: string | null | undefined
+): { adapter: "claude"; sessionId: string; resume: string } | null {
+  if (agent !== "claude" || !externalRunId) return null;
+  return { adapter: "claude", sessionId: externalRunId, resume: `claude --resume ${externalRunId}` };
 }
 
 const FLAG_PATTERN = /^[A-Za-z0-9_\-./:=,@+%]+$/;
@@ -169,7 +212,16 @@ function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions)
   const policy = breakerPolicy(rawPolicy), drift = scanWorkspaceConfig(cwd);
   if (drift.length) {
     appendRunEvent(runId, "config_quarantined", { files: drift });
-    const reason = `config_firewall: ${drift.map((file) => `${file.kind}:${file.path}`).join(", ")}`;
+    const summary = drift.map((file) => `${file.kind}:${file.path}`).join(", ");
+    // M5.3 producer: a quarantined config change needs a human decision — record it as
+    // a pending, normalized action_request (irreversible config edit) so the reviewer
+    // can approve/deny it. The run still fails safe (trips) until that decision lands.
+    recordActionRequest(runId, {
+      tool: "config_firewall", command: `apply quarantined config change: ${summary}`,
+      affectedPaths: drift.map((file) => file.path), networkDest: null,
+      secretsRequested: [], reversible: false, policyRule: "config_firewall",
+    });
+    const reason = `config_firewall: ${summary}`;
     tripRun(runId, reason); throw new Error(reason);
   }
   // M4.1 pre-flight (opt-in): when policy.requireContract is set, a run missing
@@ -189,7 +241,7 @@ function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions)
   const env = agentEnv(telemetryEnv(runId, cwd, { ...opts.extraEnv, ...secrets.env, AGENTOS_CANARY_SECRET: canary }));
   let launch: ReturnType<typeof selectSandbox>;
   try { launch = selectSandbox(agent, originalBin, cleanArgs, rawPolicy.sandbox); }
-  catch (error) { const reason = `sandbox: ${String(error)}`; tripRun(runId, reason); throw error; }
+  catch (error) { const reason = `sandbox: ${String(error)}`; policyDenied(runId, reason); tripRun(runId, reason); throw error; }
   setRunSandbox(runId, launch.sandbox);
   // Explicit sandbox:"none" opt-out is honored but never silent (M3.10).
   if (launch.sandbox === "none") appendRunEvent(runId, "security_alert", { kind: "sandbox_disabled", agent });
@@ -202,7 +254,9 @@ function prepareRun(agent: AgentName, args: readonly string[], opts: RunOptions)
   const refusal = billingRefusal(agent, args, billingEnv, policy)
     || ((run?.cost_usd || 0) + policy.estimatedCallUsd > policy.maxCostUsd ? `budget: run $${policy.maxCostUsd} hard cap` : null)
     || budgetPrecheck(runId, policy.estimatedCallUsd);
-  if (refusal) { tripRun(runId, refusal); throw new Error(refusal); }
+  if (refusal) { policyDenied(runId, refusal); tripRun(runId, refusal); throw new Error(refusal); }
+  // M5.2 — pre-run checkpoint (additive, fail-safe). retry_step resets the workspace to this.
+  try { createCheckpoint(runId, cwd, "pre"); } catch { /* checkpointing is additive; never blocks a run */ }
   if (!opts.runId) appendRunEvent(runId, "started", {});
   const redactions = [...secrets.values, canary];
   runSecretValues.set(runId, redactions);
@@ -242,13 +296,118 @@ export function monitorChild(child: ChildProcessWithoutNullStreams, runId: strin
   return { breaker, feed, stop: () => clearInterval(timer) };
 }
 
+// M5.1 producer — capture the workspace's actual diff hunks as kind:"diff" artifacts so
+// the review surface renders the change grouped by criterion, not just a file path. Runs
+// after (and independently of) the git-free secret scan above — this is strictly additive.
+// Args-array spawn, minimal env, no shell. Fail-safe: any git problem records nothing and
+// logs a loud "diff_capture_unavailable" event; never throws into the run-finish path.
+export const GIT_DIFF_MAX_BODY = 64 * 1024;
+export const GIT_DIFF_MAX_FILES = 100;
+
+function gitRun(args: string[], cwd: string) {
+  return spawnSync("git", args, { cwd, env: agentEnv(), encoding: "utf8", timeout: 30_000, maxBuffer: 128 * 1024 * 1024 });
+}
+
+// Split a unified diff into per-file sections keyed by the post-image ("b/") path.
+function parseDiffByFile(diff: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const part of diff.split(/^diff --git /m)) {
+    if (!part.trim()) continue;
+    const firstLine = part.split("\n", 1)[0];
+    const match = firstLine.match(/ b\/(.+)$/);
+    const p = (match ? match[1] : firstLine.split(" ")[0]?.replace(/^a\//, "")) ?? "";
+    if (!p) continue;
+    const section = "diff --git " + part;
+    map.set(p, map.has(p) ? `${map.get(p)}\n${section}` : section);
+  }
+  return map;
+}
+
+// Enumerate changed files from `git status --porcelain`, resolving renames to the new
+// path and flagging untracked entries (which have no tracked-diff hunk).
+function parseChangedFiles(porcelain: string): Array<{ path: string; untracked: boolean }> {
+  const out: Array<{ path: string; untracked: boolean }> = [];
+  for (const line of porcelain.split("\n")) {
+    if (line.length < 4) continue;
+    const xy = line.slice(0, 2);
+    let rest = line.slice(3);
+    const arrow = rest.indexOf(" -> ");
+    if (arrow >= 0) rest = rest.slice(arrow + 4);
+    rest = rest.replace(/^"(.*)"$/, "$1");
+    out.push({ path: rest, untracked: xy === "??" });
+  }
+  return out;
+}
+
+function truncateDiffBody(body: string): string {
+  return body.length > GIT_DIFF_MAX_BODY ? body.slice(0, GIT_DIFF_MAX_BODY) + "\n...truncated" : body;
+}
+
+export function captureGitDiff(runId: string, cwd: string, redactions: string[]): void {
+  try {
+    const probe = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd, env: agentEnv(), encoding: "utf8", timeout: 5_000 });
+    if (probe.error || probe.status !== 0 || (probe.stdout || "").trim() !== "true") {
+      appendRunEvent(runId, "diff_capture_unavailable", { reason: probe.error ? "git unavailable" : "not a git repo" });
+      return;
+    }
+    const status = gitRun(["status", "--porcelain"], cwd);
+    if (status.error || status.status !== 0) {
+      appendRunEvent(runId, "diff_capture_unavailable", { reason: "git status failed" });
+      return;
+    }
+    const files = parseChangedFiles(status.stdout || "");
+    if (!files.length) { appendRunEvent(runId, "diff_captured", { files: 0 }); return; }
+
+    const unstaged = gitRun(["diff", "--no-color"], cwd);
+    const staged = gitRun(["diff", "--cached", "--no-color"], cwd);
+    if ((unstaged.error || unstaged.status !== 0) && (staged.error || staged.status !== 0)) {
+      appendRunEvent(runId, "diff_capture_unavailable", { reason: "git diff failed" });
+      return;
+    }
+    const byFile = parseDiffByFile((unstaged.stdout || "") + "\n" + (staged.stdout || ""));
+
+    const total = files.length;
+    const capped = total > GIT_DIFF_MAX_FILES;
+    // Loud cap: never silently drop files beyond the limit.
+    if (capped) appendRunEvent(runId, "diff_capture_capped", { total, captured: GIT_DIFF_MAX_FILES });
+    for (const file of capped ? files.slice(0, GIT_DIFF_MAX_FILES) : files) {
+      let raw = byFile.get(file.path);
+      if (raw === undefined && file.untracked) {
+        try { raw = readFileSync(path.join(cwd, file.path), "utf8"); } catch { raw = undefined; }
+      }
+      const body = raw === undefined ? undefined : truncateDiffBody(redactText(raw, redactions));
+      const artifactId = recordArtifact(runId, "diff", file.path, body);
+      // M5.1: auto-link the hunk to every criterion covering its path (same rule as
+      // the M4.5 scope detector). No covering criterion → leave unlinked; that IS the
+      // scope-expansion signal. Linking failures degrade loudly, never crash finishRun.
+      try {
+        for (const criterionId of criteriaCoveringPath(runId, file.path)) {
+          linkEvidence({ criterionId, artifactId, linkType: "implements", result: "unavailable" });
+        }
+      } catch (error) {
+        appendRunEvent(runId, "diff_link_failed", { ref: file.path, reason: String(error).slice(0, 200) });
+      }
+    }
+    appendRunEvent(runId, "diff_captured", { files: Math.min(total, GIT_DIFF_MAX_FILES), capped });
+  } catch (error) {
+    appendRunEvent(runId, "diff_capture_unavailable", { reason: String(error).slice(0, 200) });
+  }
+}
+
 function finishRun(runId: string, agent: AgentName, code: number | null, stdout: string, stderr: string, secrets: string[], cwd: string, startedMs: number) {
   const usage = parseJsonlUsage(stdout);
   if (usage.inputTokens || usage.outputTokens || usage.cacheTokens || usage.costUsd) appendRunEvent(runId, "usage", usage);
   if (usage.externalRunId) updateRunMetadata(runId, { externalSource: agent, externalRunId: usage.externalRunId });
+  // M6.1 — record the adapter's native checkpoint (record-only; restore paths unchanged).
+  const native = nativeCheckpointEvent(agent, usage.externalRunId);
+  if (native) appendRunEvent(runId, "native_checkpoint", native);
   // Post-run: scan files the run wrote for canary + secret-value variants (M3.8/M3.12).
   const leaked = scanWorkspaceForSecrets(cwd, startedMs, secrets);
   if (leaked.length) { appendRunEvent(runId, "security_alert", { kind: "secret_in_artifact", files: leaked }); tripRun(runId, "secret_in_artifact"); }
+  // M5.1: capture redacted diff hunks as artifacts (additive to the scan above).
+  captureGitDiff(runId, cwd, secrets);
+  // M5.2 — post-run checkpoint (additive, fail-safe). fork/restore materialize this.
+  try { createCheckpoint(runId, cwd, "post"); } catch { /* checkpointing is additive; never blocks a run */ }
   runSecretValues.delete(runId);
   const safeErr = redactText(stderr, secrets);
   if (getRun(runId)?.tripped_reason) appendRunEvent(runId, "process_exited", { code, afterTrip: true });
@@ -261,11 +420,21 @@ export async function run(
   opts: RunOptions
 ): Promise<RunResult> {
   const started = Date.now();
+  // M6.4 — allocate a free localhost port and inject it as $AGENTOS_PORT via the extraEnv
+  // seam (extraEnv → telemetryEnv → agentEnv). Fail-safe: allocation failure proceeds
+  // without the var and is recorded loudly once the runId exists; it never blocks the run.
+  let port: number | null = null;
+  let portError: unknown = null;
+  try { port = await allocatePort(); } catch (e) { portError = e; }
+  const preparedOpts = { ...opts, extraEnv: withPortEnv(opts.extraEnv, port) };
+
   let prepared: ReturnType<typeof prepareRun>;
-  try { prepared = prepareRun(agent, args, opts); }
+  try { prepared = prepareRun(agent, args, preparedOpts); }
   catch (e) {
     return { ok: false, code: -1, stdout: "", stderr: String(e), durationMs: 0 };
   }
+  if (port != null) appendRunEvent(prepared.runId, "port_allocated", { port });
+  else appendRunEvent(prepared.runId, "port_allocation_failed", { error: String(portError).slice(0, 200) });
 
   return new Promise<RunResult>((resolve) => {
     const child = spawn(prepared.bin, prepared.cleanArgs, { cwd: prepared.cwd, env: prepared.env, detached: process.platform !== "win32" }) as ChildProcessWithoutNullStreams;

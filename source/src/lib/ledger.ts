@@ -13,8 +13,16 @@ export interface RunRow {
   started_at: string | null; finished_at: string | null; worker_id: string | null;
   heartbeat_at: string | null;
   policy_json: string; tripped_reason: string | null; sandbox: string | null;
+  parent_run_id: string | null;
 }
 export interface RunEvent { id: string; run_id: string; seq: number; type: string; payload: unknown; created_at: string }
+// M5.2 (M6 checkpoint machinery pulled forward) — a checkpoint is an AgentOS-owned git ref
+// (refs/agent-os/checkpoints/<id>) pointing at a detached snapshot commit. See lib/checkpoints.ts.
+export interface CheckpointRow {
+  id: string; run_id: string; seq: number; kind: string;
+  git_ref: string; git_sha: string; base_sha: string | null; created_at: string;
+  storage: string; manifest_json: string | null;
+}
 
 const migrations = [
   `CREATE TABLE runs (
@@ -77,6 +85,53 @@ const migrations = [
      artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
      link_type TEXT NOT NULL, verifier TEXT, verifier_version TEXT, result TEXT NOT NULL
    );`,
+  // M5.3/M5.4 "approvals are transactions, not chat messages" — §4.2. Each risky
+  // action the agent wants is a normalized request (exact command, affected paths,
+  // network dest, secrets, reversibility, the policy rule that triggered the prompt)
+  // hashed so a modified action can't ride an old approval. Grants are scoped
+  // (once/run/workspace) with an expiry. See src/lib/actions.ts for the logic.
+  `CREATE TABLE action_requests (
+     id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+     seq INTEGER NOT NULL, tool TEXT NOT NULL, normalized_json TEXT NOT NULL,
+     command TEXT NOT NULL, affected_paths_json TEXT NOT NULL DEFAULT '[]',
+     network_dest TEXT, secrets_requested_json TEXT NOT NULL DEFAULT '[]',
+     reversible INTEGER NOT NULL DEFAULT 1, policy_rule TEXT, request_hash TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL,
+     UNIQUE(run_id, seq)
+   );
+   CREATE INDEX action_requests_run ON action_requests(run_id, seq);
+   CREATE TABLE approvals (
+     id TEXT PRIMARY KEY,
+     action_request_id TEXT NOT NULL REFERENCES action_requests(id) ON DELETE CASCADE,
+     decision TEXT NOT NULL, scope TEXT NOT NULL, granted_at TEXT NOT NULL,
+     expires_at TEXT, grant_hash TEXT NOT NULL, used_at TEXT
+   );
+   CREATE INDEX approvals_request ON approvals(action_request_id);`,
+  // M5.1 — hunk-body capture seam. Diff artifacts historically stored only a path in
+  // `ref`; `body` holds the captured unified-diff/hunk text so the review surface can
+  // render the actual change, not just a file reference. Nullable: pre-M5 runs (and any
+  // artifact whose producer doesn't pass a body) render the ref + a "not captured" fallback.
+  `ALTER TABLE artifacts ADD COLUMN body TEXT;`,
+  // M5.2 — checkpoint machinery (pulled forward from M6). Each checkpoint is a detached
+  // git snapshot commit reachable via refs/agent-os/checkpoints/<id>; the row is the ledger
+  // index into it. parent_run_id links a retry/fork child back to the run it descends from.
+  `CREATE TABLE checkpoints (
+     id TEXT PRIMARY KEY,
+     run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+     seq INTEGER NOT NULL, kind TEXT NOT NULL,
+     git_ref TEXT NOT NULL, git_sha TEXT NOT NULL, base_sha TEXT,
+     created_at TEXT NOT NULL, UNIQUE(run_id, seq)
+   );
+   CREATE INDEX checkpoints_run ON checkpoints(run_id, seq);
+   ALTER TABLE runs ADD COLUMN parent_run_id TEXT;`,
+  // M6.2/M6.3 — checkpoints gain a storage backend + a capture manifest.
+  // storage: 'git' (git_ref = refs/agent-os/... , git_sha = snapshot commit) or 'fs'
+  // (git_ref = snapshot dir under ~/.agentic-os/checkpoints/<id>, git_sha = content hash
+  // over the sorted manifest). manifest_json holds {untracked:[]} for git, {files:[{path,
+  // sha256,size}],totalBytes} for fs — the completeness record for a restore. Column names
+  // git_ref/git_sha are reused for the fs backend (both NOT NULL) rather than adding nullable twins.
+  `ALTER TABLE checkpoints ADD COLUMN storage TEXT NOT NULL DEFAULT 'git';
+   ALTER TABLE checkpoints ADD COLUMN manifest_json TEXT;`,
 ];
 
 let singleton: DatabaseSync | undefined;
@@ -104,6 +159,7 @@ export function ledgerDb(): DatabaseSync {
 export function createRun(input: {
   agent: string; objective?: string; workspace: string; args?: readonly string[];
   cliVersion?: string; externalSource?: string; externalRunId?: string; id?: string; policy?: unknown;
+  parentRunId?: string;
 }): RunRow {
   const db = ledgerDb();
   if (input.externalSource && input.externalRunId) {
@@ -112,9 +168,9 @@ export function createRun(input: {
   }
   const id = input.id || randomUUID();
   const now = new Date().toISOString();
-  db.prepare(`INSERT INTO runs(id,status,agent,objective,workspace,args_json,cli_version,external_source,external_run_id,created_at,updated_at,policy_json)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(id, "queued", input.agent, input.objective || input.args?.join(" ") || input.agent,
-      input.workspace, JSON.stringify(input.args || []), input.cliVersion || null, input.externalSource || null, input.externalRunId || null, now, now, JSON.stringify(input.policy || {}));
+  db.prepare(`INSERT INTO runs(id,status,agent,objective,workspace,args_json,cli_version,external_source,external_run_id,created_at,updated_at,policy_json,parent_run_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id, "queued", input.agent, input.objective || input.args?.join(" ") || input.agent,
+      input.workspace, JSON.stringify(input.args || []), input.cliVersion || null, input.externalSource || null, input.externalRunId || null, now, now, JSON.stringify(input.policy || {}), input.parentRunId || null);
   appendRunEvent(id, "queued", { agent: input.agent });
   return getRun(id)!;
 }
@@ -228,4 +284,40 @@ export function reconcileLost(maxAgeMs = 30_000): number {
   const ids = ledgerDb().prepare("SELECT id FROM runs WHERE status='running' AND (heartbeat_at IS NULL OR heartbeat_at<?)").all(cutoff) as Array<{ id: string }>;
   ids.forEach(({ id }) => appendRunEvent(id, "worker_lost", {}));
   return ids.length;
+}
+
+// ── Checkpoints (M5.2 / pulled-forward M6) ───────────────────────────────────
+export function recordCheckpoint(input: {
+  runId: string; kind: string; gitRef: string; gitSha: string; baseSha: string | null; id?: string;
+  storage?: string; manifest?: unknown;
+}): CheckpointRow {
+  const db = ledgerDb();
+  const now = new Date().toISOString();
+  const storage = input.storage || "git";
+  const manifestJson = input.manifest === undefined ? null : JSON.stringify(input.manifest);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const seq = Number((db.prepare("SELECT COALESCE(MAX(seq),0)+1 AS seq FROM checkpoints WHERE run_id=?").get(input.runId) as { seq: number }).seq);
+    const id = input.id || randomUUID();
+    db.prepare("INSERT INTO checkpoints(id,run_id,seq,kind,git_ref,git_sha,base_sha,created_at,storage,manifest_json) VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(id, input.runId, seq, input.kind, input.gitRef, input.gitSha, input.baseSha, now, storage, manifestJson);
+    db.exec("COMMIT");
+    return { id, run_id: input.runId, seq, kind: input.kind, git_ref: input.gitRef, git_sha: input.gitSha, base_sha: input.baseSha, created_at: now, storage, manifest_json: manifestJson };
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
+}
+
+export function getCheckpoint(id: string): CheckpointRow | null {
+  return (ledgerDb().prepare("SELECT * FROM checkpoints WHERE id=?").get(id) as unknown as CheckpointRow | undefined) || null;
+}
+
+export function getLatestCheckpoint(runId: string, kind?: string): CheckpointRow | null {
+  const db = ledgerDb();
+  const row = kind
+    ? db.prepare("SELECT * FROM checkpoints WHERE run_id=? AND kind=? ORDER BY seq DESC LIMIT 1").get(runId, kind)
+    : db.prepare("SELECT * FROM checkpoints WHERE run_id=? ORDER BY seq DESC LIMIT 1").get(runId);
+  return (row as unknown as CheckpointRow | undefined) || null;
+}
+
+export function listCheckpoints(runId: string): CheckpointRow[] {
+  return ledgerDb().prepare("SELECT * FROM checkpoints WHERE run_id=? ORDER BY seq").all(runId) as unknown as CheckpointRow[];
 }

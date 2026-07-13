@@ -89,6 +89,32 @@ Status: M4.1-M4.6 CLOSED 2026-07-12 (net-new, NOT pre-built). Combined audit+imp
 
 Out of scope (kill list M4): tournament / N-way fan-out + promote-winner — v2 experiment, do not build in v1.
 
+# Requirements Ledger — M5 "The review surface" (Plan v3 step 6)
+
+Source: AgentOS_Revised_Build_Plan_v3.md §5 M5 (lines 452-467) + §4.2 (action_requests, approvals). Branch: m0-security-patch. NOTE: M4 already built src/app/runs/[id]/review/page.tsx + reviewData.ts — EXTEND, don't rebuild.
+Status: CLOSED 2026-07-13. Built in phases (tester/sonnet x5), design pass for checkpoints (analyzer/opus), independently verified across 3 passes (fresh security-validator/opus, confidence 0.9): all five items PASS, vitest 106/106, tsc clean. User approved pulling M6 checkpoint machinery forward — retry/fork/restore are real git-ref checkpoints (refs/agent-os/checkpoints/*, worktree-first restore, in-place gated). M5.5's literal human 5-min timing is the operator's sign-off; /runs triage surface built to support it.
+
+- [x] M5.1. Run page answers on one screen: objective + acceptance criteria each met/unmet/unverifiable/violated; diff grouped BY criterion (not by file); decision log inline against the hunks it produced; what was proposed but denied by policy + why; cost vs budget, model(s), sandbox, CLI version; which checks passed/failed/could-not-run (never conflated); scope-expansion flags
+- [x] M5.2. Actions: approve, deny, retry-one-step, fork-from-checkpoint, cancel, restore (checkpoint machinery pulled forward from M6: refs/agent-os/checkpoints/<id> snapshots via temp index; retry resets same workspace + queues child, fork/restore use git worktree; src/lib/checkpoints.ts)
+- [x] M5.3. Approvals are transactions not chat messages: normalized action preview (exact command, affected paths, network destination, secrets requested, reversible/irreversible) + the exact policy rule that triggered the prompt + scoped grants (once / this run / this workspace, with expiry)
+- [x] M5.4. A modified action invalidates its approval — hash the normalized request
+- [x] M5.5. Exit gate: doomscrolling-gap test — a user with 3 concurrent runs triages all 3 in under 5 min, knows for each whether to merge / reject / investigate. Never "the user typed yes into the same channel the agent is reading from"
+
+Out of scope: full RBAC/multi-user approval workflow (kill list — ceded to Microsoft Agent 365).
+
+# Requirements Ledger — M6 "Checkpoints, restore, workspace isolation" (Plan v3 step 7)
+
+Source: AgentOS_Revised_Build_Plan_v3.md §5 M6 (lines 469-476). Branch: m0-security-patch. NOTE: M5 pulled forward the core: refs/agent-os/checkpoints/* snapshots (src/lib/checkpoints.ts), worktree-first restore, retry/fork verbs — bullets 472-473 largely DONE; extend, don't rebuild.
+Status: CLOSED 2026-07-13. Design (analyzer/opus) + 3 parallel phases (tester/sonnet), independently verified (fresh security-validator/opus, confidence 0.9): all seven items PASS, vitest 125/125, tsc clean. Deferred per plan R2: distinct claude-native checkpoint id (session_id recorded as native_checkpoint event instead). M6.6 cross-OS (macOS/Windows) deferred to CI matrix per plan line 495; Linux/WSL verified byte-identical.
+
+- [x] M6.1. Adopt, don't rebuild: when agent supports native checkpoints (claude checkpoint save/resume, /rewind), record the native checkpoint ID in the ledger alongside the git ref; git refs remain the cross-agent path (codex/hermes/others)
+- [x] M6.2. Restore for non-git workspaces (plan 471: "build only what's missing") — snapshot+restore fallback for non-git dirs, fail-safe, never silently lossy
+- [x] M6.3. Checkpoint capture completeness per plan 472: untracked manifest + artifact hashes recorded per checkpoint (base_sha + staged/unstaged already in snapshot tree)
+- [x] M6.4. Port collision: $AGENTOS_PORT injection per run/worktree (steal Emdash's pattern, plan 474)
+- [x] M6.5. Worktree sprawl: GC on merge/discard for -fork-/-restore- worktrees + refs/agent-os/checkpoints/* pruning policy + disk-usage panel (plan 474)
+- [x] M6.6. Exit gate: a run that corrupted a workspace is fully reverted with one action, no data loss (Linux/WSL verified now; macOS/Windows via M-late CI matrix per plan 495)
+- [x] M6.7. Exit gate: twenty completed runs leave zero orphaned worktrees (test)
+
 ## Follow-ups noted (NOT M0 — future hardening backlog)
 
 - `...process.env` spreads leak full env to non-agent subprocesses: seo/deploy/route.ts:94, opendesign/control/route.ts:18, thumbnails/generate/route.ts:48, seo/research/route.ts:54, claudeArtifacts.ts:129, hermesPhone.ts:135, videoAuto.ts:18, notebooklmClient.ts:17. Candidates for M3 credential-broker scope.
@@ -98,3 +124,12 @@ Out of scope (kill list M4): tournament / N-way fan-out + promote-winner — v2 
 - M2 LOW: finishRun adds stdout-parsed cost additively on top of OTLP deltas → possible cost over-report (fails safe: trips early, never under-counts). Reconcile when accuracy matters (M5 review surface shows cost).
 - M2 LOW: grandchild that setsid()s escapes process-group SIGKILL — inherent ceiling of group kill; sandbox selection (M3) is the real containment.
 - M2 LOW: budget_limits agent/workspace scopes + prepareRun billing-throw path verified by inspection only — add tests during M8 eval hardening.
+- M5 LOW: isWorkingTreeDirty fails open when `git status` itself errors (checkpoints.ts:44) — unreachable via UI (destructive path always sends force); flip to fail-closed during M8 hardening.
+- M5 LOW: add `--` separator before git positional args (sha/paths) in checkpoints.ts — pure defense-in-depth, values are DB-sourced today.
+- M5: no GC for refs/agent-os/checkpoints/* or -fork-/-restore- worktrees — worktree sprawl + ref accumulation is M6-proper (plan line 474) with disk-usage panel.
+- M5: /runs triage index reachable only by direct URL — no nav link anywhere; add nav entry when touching the shell UI.
+- M5: listTriage recency-limit (20) can hide an old pending-approval run — push pending filter into SQL WHERE when run volume grows.
+- M5: review page doesn't surface parent_run_id lineage or checkpoint list for retried/forked children — nice-to-have for triage.
+- M6 LOW: fs-checkpoint content hashes stored but not verified at restore time — add integrity gate on ~/.agentic-os snapshot reads during M8 hardening.
+- M6 LOW: checkpointStorageSummary spawns git per workspace on /runs GET — cache or revalidate boundary if page gets hot.
+- M6 flake: m6-runner-env real-spawn test can flake under full concurrent vitest load (OS port/spawn timing, not product logic) — serialize or add allocatePort retry if it recurs.
