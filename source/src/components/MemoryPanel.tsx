@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Search, FileText, Sparkles, Clock, Network } from "lucide-react";
 import dynamic from "next/dynamic";

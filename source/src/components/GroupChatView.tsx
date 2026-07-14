@@ -67,7 +67,7 @@ export default function GroupChatView() {
   function deleteConvo(id: string) { setConvos((prev) => { const u = prev.filter((c) => c.id !== id); try { localStorage.setItem(CONVOS_KEY, JSON.stringify(u)); } catch {} return u; }); fetch(`/api/room/history?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {}); if (id === currentId) newChat(); }
 
   function toggle(id: string) {
-    setPresent((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setPresent((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
 
   const send = useCallback(async () => {

@@ -5,7 +5,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { hermesHome } from "@/lib/config";
 import path from "node:path";
-import os from "node:os";
 
 const OR = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -64,7 +63,6 @@ function nousFrom(file: string): string | null {
 // not necessarily the global one — check the profile first, then global, then any profile.
 export function nousToken(): string | null {
   if (process.env.NOUS_API_KEY) return process.env.NOUS_API_KEY.trim();
-  const home = os.homedir();
   for (const f of [path.join(hermesHome(), "profiles", activeProfile(), "auth.json"), path.join(hermesHome(), "auth.json")]) {
     const t = nousFrom(f); if (t) return t;
   }

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, X, RefreshCw, MessageSquare, AlertCircle, CheckCircle2, Archive,
   PlayCircle, Hand, GitBranch, User2, Clock, Send, Wand2,
-  Layers, Zap, AlertTriangle, FileText, Copy, Download, FolderOpen, Eye, Code2, Sparkles, Film,
+  Layers, Zap, AlertTriangle, FileText, Copy, Download, FolderOpen, Eye, Film, Code2, Sparkles,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -531,60 +531,6 @@ export default function KanbanView() {
       </AnimatePresence>
     </div>
   );
-}
-
-/* Content Machine pinned previews — reads the orchestrator's live state and pins
-   the finished blog (iframe) + video (player) to the top of the content board. */
-function ContentPinnedPreview() {
-  const [state, setState] = useState<{ lanes: ContentLaneLite[] } | null>(null);
-  useEffect(() => {
-    let stop = false;
-    const load = async () => {
-      try {
-        const r = await fetch("/api/content/board", { cache: "no-store" });
-        const j = await r.json();
-        if (!stop && j.ok) setState(j.state);
-      } catch { /* */ }
-    };
-    load();
-    const t = setInterval(load, 3000);
-    return () => { stop = true; clearInterval(t); };
-  }, []);
-  if (!state) return null;
-  const pinned = (state.lanes || []).filter((l) => l.artifact?.previewReady && l.artifact?.pinned);
-  if (!pinned.length) return null;
-  const purl = (rel: string) => `/api/content/preview/${rel.split("/").map(encodeURIComponent).join("/")}`;
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-      {pinned.map((l) => {
-        const a = l.artifact;
-        const isBlog = a.kind === "blog";
-        const src = isBlog ? (a.previewPath ? purl(a.previewPath) : "") : (a.file ? purl(a.file) : "");
-        const videoIsHtml = !isBlog && a.isHtml;
-        return (
-          <div key={l.id} className="panel overflow-hidden" style={{ border: `1px solid ${l.accent}66` }}>
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--line-soft)]" style={{ background: `${l.accent}14` }}>
-              <span className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: l.accent }}>📌 {a.title || l.title}</span>
-              {src && <a href={src} target="_blank" rel="noopener" className="text-[var(--fg-dimmer)] hover:text-[var(--fg)] text-[11px]">open ↗</a>}
-            </div>
-            <div className="bg-black/40" style={{ height: 320 }}>
-              {!src ? <div className="grid place-items-center h-full text-xs text-[var(--fg-dimmer)]">no preview</div>
-                : (isBlog || videoIsHtml)
-                  ? <iframe src={src} className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-pointer-lock" />
-                  : <video src={src} controls preload="metadata" className="w-full h-full object-contain bg-black" />}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-interface ContentLaneLite {
-  id: string;
-  title: string;
-  accent: string;
-  artifact: { kind: string; title?: string | null; previewReady?: boolean; pinned?: boolean; previewPath?: string | null; file?: string | null; isHtml?: boolean };
 }
 
 interface DrawerProps {

@@ -78,7 +78,6 @@ export default function PipelineView() {
   const [selected, setSelected] = useState<Item | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [view, setView] = useState<"board" | "gallery">("board");
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ctrlRef = useRef<Record<string, AbortController>>({});
 
   const refresh = useCallback(async () => {
@@ -106,7 +105,7 @@ export default function PipelineView() {
       const r = await fetch("/api/pipeline/shape", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug }), signal: c.signal });
       const j = await r.json().catch(() => ({}));
       if (!j.ok && !c.signal.aborted) setErr(j.error || "Couldn't shape that idea — is Ollama running?");
-    } catch (e) { if (!c.signal.aborted) setErr("Couldn't reach the agents. Is the local model (Ollama) running?"); }
+    } catch { if (!c.signal.aborted) setErr("Couldn't reach the agents. Is the local model (Ollama) running?"); }
     delete ctrlRef.current[slug]; await refresh(); setBusy((b) => ({ ...b, [slug]: undefined }));
   }
   async function build(slug: string) {
@@ -116,7 +115,7 @@ export default function PipelineView() {
       const r = await fetch("/api/pipeline/build", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug }), signal: c.signal });
       const j = await r.json().catch(() => ({}));
       if (!j.ok && !c.signal.aborted) setErr(j.error || "Build failed — try again.");
-    } catch (e) { if (!c.signal.aborted) setErr("Couldn't reach the build agent. Is the local model (Ollama) running?"); }
+    } catch { if (!c.signal.aborted) setErr("Couldn't reach the build agent. Is the local model (Ollama) running?"); }
     delete ctrlRef.current[slug]; await refresh(); setBusy((b) => ({ ...b, [slug]: undefined }));
   }
   async function decide(slug: string, approve: boolean) {

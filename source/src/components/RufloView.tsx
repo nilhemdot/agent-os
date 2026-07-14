@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Network, Rocket, RefreshCw, Loader2, Users, Cpu, GitBranch, AlertCircle, Zap, Send } from "lucide-react";
+import { Network, Rocket, RefreshCw, Loader2, Users, Cpu, GitBranch, AlertCircle, Zap } from "lucide-react";
 import { usePollWhileVisible } from "@/lib/usePollWhileVisible";
 
 const GOLD = "#d4a574", PINK = "#f472b6", BLUE = "#60a5fa", EMERALD = "#5ab896", PLUM = "#c4607e", MUTE = "#a59783";

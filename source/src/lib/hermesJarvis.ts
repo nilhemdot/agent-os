@@ -14,11 +14,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { hermesHome } from "@/lib/config";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import os from "node:os";
 import { run } from "@/lib/runner";
 import { searchNotes, searchOmi, notesModifiedOn, recentNotes, recentOmi } from "@/lib/vault";
-
-const HOME = os.homedir();
 
 const STOP = new Set(["what", "when", "where", "which", "your", "yours", "mine", "have", "give", "some", "ideas", "about", "into", "went", "from", "with", "that", "this", "they", "them", "there", "here", "tell", "show", "know", "remember", "recall", "yesterday", "today", "obsidian", "vault", "memory", "memories", "notes", "note"]);
 
@@ -195,8 +192,8 @@ async function minimaxComplete(persona: string, prompt: string, history: JarvisM
     const j = await r.json();
     const text = stripReasoning(String(j?.choices?.[0]?.message?.content ?? "").trim());
     return text ? { text } : { text: "", error: j?.base_resp?.status_msg || "minimax empty" };
-  } catch (e) {
-    return { text: "", error: String(e) };
+  } catch (_e) {
+    return { text: "", error: String(_e) };
   } finally { clearTimeout(to); }
 }
 
@@ -223,8 +220,8 @@ export async function complete(persona: string, prompt: string, history: JarvisM
     const j = await r.json();
     const text = String(j?.choices?.[0]?.message?.content ?? "").trim();
     return text ? { text } : { text: "", error: j?.error?.message || "empty reply" };
-  } catch (e) {
-    return { text: "", error: String(e) };
+  } catch (_e) {
+    return { text: "", error: String(_e) };
   } finally { clearTimeout(to); }
 }
 

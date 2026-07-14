@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Sparkles, Rocket, FileText, BookOpen, Play, Square,
   CheckCircle2, AlertCircle, Globe, FileSearch, ClipboardPaste, Save,
@@ -132,7 +132,7 @@ export default function SEOView() {
     setRLoading(false);
   }
 
-  function useTopic(kw: string) {
+  function selectTopic(kw: string) {
     setKeyword(kw);
     setTab("generate");
   }
@@ -272,8 +272,8 @@ export default function SEOView() {
           } catch { /* ignore */ }
         }
       }
-    } catch (e) {
-      setGenLog((arr) => [...arr, `\n[error] ${String(e)}\n`]);
+    } catch (_e) {
+      setGenLog((arr) => [...arr, `\n[error] ${String(_e)}\n`]);
     }
     setGenerating(false);
     // refresh sites + history so newly written posts/sessions appear
@@ -312,7 +312,7 @@ export default function SEOView() {
         setTranscriptMode("pick");
         setPastedTranscript("");
       }
-    } catch (e) { setSavedNotice(String(e)); }
+    } catch (_e) { setSavedNotice(String(_e)); }
     setSavingTranscript(false);
   }
 
@@ -352,8 +352,8 @@ export default function SEOView() {
           } catch {}
         }
       }
-    } catch (e) {
-      setDeployLog((s) => ({ ...s, [siteId]: [...(s[siteId] ?? []), `\n[error] ${String(e)}\n`] }));
+    } catch (_e) {
+      setDeployLog((s) => ({ ...s, [siteId]: [...(s[siteId] ?? []), `\n[error] ${String(_e)}\n`] }));
       setDeployStatus((s) => ({ ...s, [siteId]: "err" }));
     }
     refreshHistory();
@@ -525,7 +525,7 @@ export default function SEOView() {
                         </div>
                       )}
                     </div>
-                    <button onClick={() => useTopic(t.keyword)} className="flex items-center gap-1.5 px-3 h-[34px] rounded-lg border text-[12.5px] shrink-0 transition border-[rgba(163,230,53,0.35)] text-lime-300 hover:bg-[rgba(163,230,53,0.14)]">
+                    <button onClick={() => selectTopic(t.keyword)} className="flex items-center gap-1.5 px-3 h-[34px] rounded-lg border text-[12.5px] shrink-0 transition border-[rgba(163,230,53,0.35)] text-lime-300 hover:bg-[rgba(163,230,53,0.14)]">
                       <Sparkles size={13} /> Use topic <ArrowRight size={12} />
                     </button>
                   </div>
@@ -637,7 +637,7 @@ export default function SEOView() {
                   <textarea
                     value={pastedTranscript}
                     onChange={(e) => setPastedTranscript(e.target.value)}
-                    onPaste={async (e) => {
+                    onPaste={async () => {
                       // Allow normal text paste; if pasted content is very large, let the browser handle it.
                       // No special handling needed — onChange picks it up.
                     }}

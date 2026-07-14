@@ -101,7 +101,6 @@ export default function ThumbnailStudio() {
             >
               {images.map((src, i) => (
                 <div key={i} className="relative aspect-video rounded overflow-hidden border" style={{ borderColor: `${ACCENT}33` }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src} alt={`ref ${i + 1}`} className="w-full h-full object-cover" />
                   <button onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))} className="absolute top-0.5 right-0.5 rounded-full p-0.5" style={{ background: "rgba(0,0,0,0.65)" }} aria-label="Remove"><X size={11} style={{ color: "#fff" }} /></button>
                 </div>
@@ -185,7 +184,6 @@ export default function ThumbnailStudio() {
               {results.map((src, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                   className="rounded-lg overflow-hidden border group relative" style={{ borderColor: "var(--line-soft)" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src} alt={`version ${i + 1}`} className="w-full aspect-video object-cover cursor-zoom-in" onClick={() => setEnlarged(src)} />
                   <a href={src} download={`thumbnail-${i + 1}.png`}
                     className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] opacity-0 group-hover:opacity-100 transition"
@@ -224,13 +222,11 @@ export default function ThumbnailStudio() {
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {(s.inputFiles || []).map((inp) => (
                     <div key={inp} className="shrink-0 relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={fileUrl(inp, 480)} loading="lazy" decoding="async" alt="reference" className="h-20 aspect-video object-cover rounded border cursor-zoom-in" style={{ borderColor: "var(--line-soft)", opacity: 0.65 }} onClick={() => setEnlarged(fileUrl(inp))} />
                       <span className="absolute top-1 left-1 text-[8px] px-1 rounded" style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}>REF</span>
                     </div>
                   ))}
                   {s.outputs.map((o) => (
-                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img key={o} src={fileUrl(o, 480)} loading="lazy" decoding="async" alt="version" className="h-20 aspect-video object-cover rounded border shrink-0 cursor-zoom-in" style={{ borderColor: `${ACCENT}44` }} onClick={() => setEnlarged(fileUrl(o))} />
                   ))}
                 </div>
@@ -245,7 +241,6 @@ export default function ThumbnailStudio() {
         {enlarged && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 grid place-items-center p-8" style={{ background: "rgba(0,0,0,0.8)" }} onClick={() => setEnlarged(null)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <motion.img initial={{ scale: 0.96 }} animate={{ scale: 1 }} exit={{ scale: 0.96 }} src={enlarged} alt="" className="max-w-[90vw] max-h-[85vh] rounded-lg" onClick={(e) => e.stopPropagation()} />
           </motion.div>
         )}

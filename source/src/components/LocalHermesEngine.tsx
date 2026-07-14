@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Cpu, WifiOff, Zap, Send, Loader2, FolderOpen, Eye, Code2, RotateCw,
+  Cpu, WifiOff, Zap, Send, Loader2, FolderOpen, Eye, RotateCw,
   FileText, Image as ImageIcon, Boxes, Trash2,
 } from "lucide-react";
 import VoiceButton from "./VoiceButton";

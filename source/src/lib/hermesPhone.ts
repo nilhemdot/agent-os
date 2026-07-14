@@ -127,6 +127,7 @@ export function installCloudflared(): { state: "present" | "installing" | "start
   for (const b of ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]) if (existsSync(b)) { brew = b; break; }
   if (!brew) { try { brew = execSync("command -v brew", { encoding: "utf8" }).trim(); } catch {} }
   if (!brew) return { state: "no-brew" };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- sync file API for install log
   const fs = require("node:fs") as typeof import("node:fs");
   const out = fs.openSync(INSTALL_LOG, "a");
   const child = spawn(brew, ["install", "cloudflared"], {

@@ -194,7 +194,7 @@ export async function readSession(id: string): Promise<SessionDetail | null> {
   }
 
   // List files currently present in the session's cwd (if it still exists)
-  let cwdFiles: CdxFile[] = [];
+  const cwdFiles: CdxFile[] = [];
   let cwdExists = false;
   if (cwd && existsSync(cwd)) {
     cwdExists = true;

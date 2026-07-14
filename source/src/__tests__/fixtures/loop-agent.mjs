@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* globals process, console, setInterval */
 if (process.argv.includes("--version")) {
   console.log("loop-agent 1.0.0");
   process.exit(0);

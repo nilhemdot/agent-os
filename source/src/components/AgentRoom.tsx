@@ -38,7 +38,7 @@ export default function AgentRoom({ agent, accent, accentDim, tabs, vitals, defa
     setBusy(false);
   }
 
-  useEffect(() => { fetchAction(defaultTab); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { fetchAction(defaultTab);   }, []);
 
   const activeTab = tabs.find((t) => t.action === tab);
 

@@ -411,7 +411,7 @@ export async function addCustomServer(spec: AddCustomSpec): Promise<{ ok: boolea
 
   // 2) Build the CLI arg list. Validate each piece — anything user-supplied
   //    must not contain shell metacharacters or NULs.
-  const cleanStr = (s: string, label: string): string | null => {
+  const cleanStr = (s: string): string | null => {
     if (typeof s !== "string" || s.length === 0 || s.length > 4096) return null;
     if (s.includes("\0")) return null;
     // We allow most printable ASCII because args can include URLs, paths, etc.
@@ -422,19 +422,19 @@ export async function addCustomServer(spec: AddCustomSpec): Promise<{ ok: boolea
 
   const argList: string[] = ["mcp", "add", spec.name];
   if (spec.url) {
-    const u = cleanStr(spec.url, "url");
+    const u = cleanStr(spec.url);
     if (!u) return { ok: false, output: "", error: "invalid url" };
     argList.push("--url", u);
   }
   if (spec.command) {
-    const c = cleanStr(spec.command, "command");
+    const c = cleanStr(spec.command);
     if (!c) return { ok: false, output: "", error: "invalid command" };
     argList.push("--command", c);
   }
   if (spec.args && spec.args.length > 0) {
     argList.push("--args");
     for (const a of spec.args) {
-      const ca = cleanStr(a, "arg");
+      const ca = cleanStr(a);
       if (ca === null) return { ok: false, output: "", error: `invalid arg: ${a}` };
       argList.push(ca);
     }

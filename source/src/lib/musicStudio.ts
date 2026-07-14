@@ -7,7 +7,7 @@
 // listMusic() reads the sidecars so the gallery shows full history with metadata.
 // "Save" is a starred/favourite flag on the sidecar (toggle), per the spec.
 
-import { readFile, writeFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir,  unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";

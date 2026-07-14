@@ -367,7 +367,6 @@ function MediaCard({ result, pathExists, onRemove }: { result: MediaResult; path
             if (result.kind === "image") {
               return (
                 <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="block group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={src}
                     alt={result.prompt}

@@ -46,8 +46,7 @@ export async function GET() {
 
   const reachable = Array.isArray(agents) && agents.length > 0;
 
-  // ── Agent cards (sorted by org rank) ──
-  const rank: Record<string, number> = { ceo: 0, cto: 1, cmo: 1, coo: 1, "head of operations": 1, ops: 1, cfo: 1 };
+  // ── Agent cards ──
   const cleanAgents = (agents || []).map((a) => ({
     id: a.id,
     name: a.name,

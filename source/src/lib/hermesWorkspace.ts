@@ -26,6 +26,7 @@ export const HERMES_ROOT = path.join(hermesHome());
 // ~/.hermes/active_profile. Default to "julian" matching the user's setup.
 function readActiveProfile(): string {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- sync read at module init
     const txt = require("node:fs").readFileSync(path.join(HERMES_ROOT, "active_profile"), "utf8");
     const trimmed = (txt as string).trim();
     if (trimmed && /^[A-Za-z0-9_.-]+$/.test(trimmed)) return trimmed;

@@ -145,7 +145,7 @@ export function mdArticleToPreviewHtml(md: string, siteName: string): string {
   const fm = md.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
   const title = frontMatterField(md, "title") || "Article";
   const desc = frontMatterField(md, "description") || "";
-  let body = fm ? md.slice(fm[0].length) : md;
+  const body = fm ? md.slice(fm[0].length) : md;
 
   const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const inline = (t: string) =>

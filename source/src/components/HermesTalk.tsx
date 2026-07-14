@@ -114,7 +114,7 @@ export default function HermesTalk() {
     try { audioRef.current?.pause(); } catch { /* */ }
     setListening(false); setSpeaking(false); setInterim("");
   }
-  function toggleConvo() { convo ? endConvo() : startConvo(); }
+  function toggleConvo() { if (convo) endConvo(); else startConvo(); }
 
   const orbState = listening ? "listen" : busy ? "think" : speaking ? "speak" : convo ? "active" : "idle";
   const status = micMsg ? micMsg : !convo ? (sttOk ? "Tap to start a hands-free conversation" : "Voice needs Chrome — type below")

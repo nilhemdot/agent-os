@@ -6,7 +6,7 @@ import { createRun, listRunEvents } from "@/lib/ledger";
 import {
   createContract, detectScopeExpansion, flagScopeExpansion, ingestDecision, linkedArtifactRefs,
   linkEvidence, listCriteria, listDecisions, normalizeContract, parseContractFromWorkspace,
-  parseCriteriaMarkdown, persistCriteria, recordArtifact, runGate, runVerificationGates, verificationPassed,
+  parseCriteriaMarkdown, recordArtifact, runGate, runVerificationGates, verificationPassed,
 } from "@/lib/contract";
 
 beforeAll(() => {

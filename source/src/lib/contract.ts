@@ -55,7 +55,6 @@ export function normalizeContract(contract: ContractInput): CriterionInput[] {
 
 export function persistCriteria(runId: string, criteria: readonly CriterionInput[], contractMeta?: ContractInput): CriterionRow[] {
   const db = ledgerDb();
-  const now = new Date().toISOString();
   const rows: CriterionRow[] = [];
   db.exec("BEGIN IMMEDIATE");
   try {

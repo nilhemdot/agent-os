@@ -831,7 +831,6 @@ export default function CodexView() {
                         </div>
                         {sessionFile.kind === "image" && (
                           <a href={sessionFile.url} target="_blank" rel="noopener noreferrer" className="block bg-[rgba(0,0,0,0.6)]">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={sessionFile.url} alt={sessionFile.absPath} className="w-full max-h-[520px] object-contain" />
                           </a>
                         )}
@@ -1020,7 +1019,6 @@ export default function CodexView() {
                         })()}
                         {open.kind === "image" && (
                           <a href={rawUrl(open.path)} target="_blank" rel="noopener noreferrer" className="block bg-[rgba(0,0,0,0.6)]">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={rawUrl(open.path)} alt={open.path} className="w-full max-h-[520px] object-contain" />
                           </a>
                         )}

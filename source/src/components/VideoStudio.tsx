@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Film, Sparkles, Layers, Loader2, Send, Play, Download, ExternalLink,
+  Film, Layers, Loader2, Send, Play, Download, ExternalLink,
   Wand2, User, FolderOpen, RefreshCw, Search, Radio, Clock, X as XIcon,
   CheckCircle2, AlertCircle, Code2, FileJson, FileText, Image as ImageIcon,
   Eye, Clapperboard,
@@ -479,7 +479,6 @@ function AvatarTab() {
                 style={{ borderColor: selectedAvatar?.avatar_id === a.avatar_id ? ACCENT : "var(--line-soft)", boxShadow: selectedAvatar?.avatar_id === a.avatar_id ? `0 0 14px -2px ${ACCENT}` : undefined }}
                 title={a.avatar_name}>
                 {a.preview_image_url ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={a.preview_image_url} alt={a.avatar_name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full grid place-items-center" style={{ background: `${ACCENT}10` }}>
@@ -556,7 +555,6 @@ function AvatarTab() {
               <div className="flex-1 grid place-items-center text-center p-6">
                 <div>
                   {job.thumbnailUrl && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={job.thumbnailUrl} alt="preview" className="max-w-[300px] rounded-md mx-auto mb-3 opacity-50" />
                   )}
                   {job.status === "completed" ? (
@@ -612,7 +610,6 @@ function AvatarHistory({ items, onLoad, activeId }: { items: AvatarJob[]; onLoad
             style={{ borderColor: activeId === it.videoId ? `${ACCENT}66` : "var(--line-soft)" }}>
             <div className="aspect-video bg-black/40">
               {it.thumbnailUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={it.thumbnailUrl} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full grid place-items-center" style={{ background: `${ACCENT}10` }}>
@@ -799,7 +796,6 @@ function WorkspaceTab() {
               </div>
             )}
             {k === "image" && (
-              /* eslint-disable-next-line @next/next/no-img-element */
               <a href={open.url} target="_blank" rel="noopener noreferrer" className="flex-1 grid place-items-center bg-black/40">
                 <img src={open.url} alt={open.name} className="max-w-full max-h-full object-contain" />
               </a>

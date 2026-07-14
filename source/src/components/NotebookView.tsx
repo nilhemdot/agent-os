@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, Plus, Send, RefreshCw, MessageSquare, Library, Headphones,
   Video as VideoIcon, Image as ImageIcon, Brain, FileText, Layers, FileQuestion,
-  Sparkles, AlertCircle, Download, Clock, ExternalLink, X, ChevronRight,
+  Sparkles, AlertCircle, Download, ExternalLink, X, ChevronRight,
   Telescope, Globe, Zap, Loader2,
 } from "lucide-react";
 import VoiceButton from "./VoiceButton";
@@ -68,16 +68,6 @@ const ARTIFACT_TYPES: { value: ArtifactType; label: string; icon: React.ReactNod
 
 const ACCENT = "#fde047";
 
-function fmtAgo(input: string | number | undefined): string {
-  if (!input) return "—";
-  const ts = typeof input === "number" ? input : Date.parse(input);
-  if (!Number.isFinite(ts)) return "—";
-  const d = Date.now() - (ts > 1e12 ? ts : ts * 1000);
-  if (d < 60_000) return "just now";
-  if (d < 3_600_000) return `${Math.floor(d/60_000)}m ago`;
-  if (d < 86_400_000) return `${Math.floor(d/3_600_000)}h ago`;
-  return `${Math.floor(d/86_400_000)}d ago`;
-}
 function notebookLabel(n: Notebook): string { return n.title || n.name || n.id; }
 
 export default function NotebookView() {
@@ -867,7 +857,6 @@ function AssetPreview({ asset }: { asset: SavedAsset }) {
   if (asset.kind === "image") {
     return (
       <a href={src} target="_blank" rel="noopener noreferrer" className="block">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={asset.name} className="w-full max-h-[260px] object-cover rounded-lg" />
       </a>
     );
