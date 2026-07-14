@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Os"
+  short_description: "Repo-specific patterns and workflows for agent-os"
+  default_prompt: "Use the agent-os repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
