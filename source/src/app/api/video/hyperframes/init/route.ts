@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
+import { spawnStream } from "@/lib/runner";
 import { writeFile, mkdir, readdir, stat, copyFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -268,8 +268,7 @@ ${assets.length ? assets.map((a) => `  - assets/${a}`).join("\n") : "  (none —
 
 function runClaude(system: string, prompt: string, cwd: string, timeoutMs: number): Promise<string> {
   return new Promise((resolve) => {
-    const child = spawn("claude", ["-p", "--model", CLAUDE_MODEL, "--append-system-prompt", system, prompt],
-      { cwd, env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnStream("claude", ["-p", "--model", CLAUDE_MODEL, "--append-system-prompt", system, prompt], { cwd });
     let out = "";
     const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch {} resolve(out); }, timeoutMs);
     child.stdout.on("data", (d) => { out += String(d); });

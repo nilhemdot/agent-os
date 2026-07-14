@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { config } from "@/lib/config";
+import { spawnStream } from "@/lib/runner";
 import { codexApprovalArgs } from "@/lib/codexWorkspace";
 import {
   listGoals, createGoal, updateGoal, deleteGoal, stopGoal, getGoal, readGoalLog,
@@ -46,24 +46,14 @@ export async function POST(req: Request) {
   // the browser can't answer), so set the approval policy explicitly. Default is
   // "auto" (never prompt, sandboxed to the goal's cwd); the UI can pass "yolo".
   const log = createWriteStream(goal.logFile, { flags: "a" });
-  const child = spawn(config.codex, [
+  const args = [
     "exec",
     "--json",
     "--skip-git-repo-check",
     ...codexApprovalArgs(body.approvalMode),
     goal.prompt,
-  ], {
-    cwd: goal.cwd,
-    env: {
-      ...process.env,
-      PATH: process.env.PATH ?? "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin",
-      HOME: process.env.HOME ?? "",
-      SHELL: process.env.SHELL ?? "/bin/zsh",
-      NO_COLOR: "1",
-    },
-    detached: true,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  ];
+  const child = spawnStream("codex", args, { cwd: goal.cwd, detached: true });
 
   child.stdout.on("data", (b: Buffer) => {
     log.write(b);

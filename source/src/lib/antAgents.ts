@@ -28,7 +28,7 @@ function modelId(m: unknown): string | undefined {
 }
 
 export async function listAgents(): Promise<AntAgent[]> {
-  const out = await run("ant", ["beta:agents", "list", "--format", "jsonl"], { timeoutMs: 20000 });
+  const out = await run("ant", ["beta:agents", "list", "--format", "jsonl"], { cwd: process.cwd(), timeoutMs: 20000 });
   return parseJsonl(out.stdout)
     .filter((a) => typeof a.id === "string" && String(a.id).startsWith("agent_"))
     .map((a) => ({ id: String(a.id), name: String(a.name ?? "Agent"), description: a.description ? String(a.description) : undefined, model: modelId(a.model), system: a.system ? String(a.system) : undefined }));
@@ -36,10 +36,10 @@ export async function listAgents(): Promise<AntAgent[]> {
 
 // Find a reusable cloud environment, or create one.
 export async function ensureEnvironment(): Promise<string | null> {
-  const list = await run("ant", ["beta:environments", "list", "--format", "jsonl"], { timeoutMs: 15000 });
+  const list = await run("ant", ["beta:environments", "list", "--format", "jsonl"], { cwd: process.cwd(), timeoutMs: 15000 });
   const existing = parseJsonl(list.stdout).find((e) => e.name === ENV_NAME && e.archived_at == null);
   if (existing && typeof existing.id === "string") return existing.id;
-  const made = await run("ant", ["beta:environments", "create", "--name", ENV_NAME, "--format", "json"], { timeoutMs: 20000 });
+  const made = await run("ant", ["beta:environments", "create", "--name", ENV_NAME, "--format", "json"], { cwd: process.cwd(), timeoutMs: 20000 });
   try { const j = JSON.parse(made.stdout.slice(made.stdout.indexOf("{"))); return j.id ?? null; } catch { return null; }
 }
 
@@ -47,19 +47,19 @@ export async function ensureEnvironment(): Promise<string | null> {
 export async function startRun(agentId: string, prompt: string): Promise<{ sessionId?: string; error?: string }> {
   const envId = await ensureEnvironment();
   if (!envId) return { error: "could not create a session environment" };
-  const sess = await run("ant", ["beta:sessions", "create", "--agent", agentId, "--environment-id", envId, "--title", "Cockpit run", "--format", "json"], { timeoutMs: 20000 });
+  const sess = await run("ant", ["beta:sessions", "create", "--agent", agentId, "--environment-id", envId, "--title", "Cockpit run", "--format", "json"], { cwd: process.cwd(), timeoutMs: 20000 });
   let sessionId: string | undefined;
   try { sessionId = JSON.parse(sess.stdout.slice(sess.stdout.indexOf("{"))).id; } catch { /* */ }
   if (!sessionId) return { error: (sess.stderr || sess.stdout).slice(-300) };
   const ev = `type: user.message\ncontent:\n  - type: text\n    text: ${JSON.stringify(prompt)}`;
-  const send = await run("ant", ["beta:sessions:events", "send", "--session-id", sessionId, "--event", ev, "--format", "json"], { timeoutMs: 30000 });
+  const send = await run("ant", ["beta:sessions:events", "send", "--session-id", sessionId, "--event", ev, "--format", "json"], { cwd: process.cwd(), timeoutMs: 30000 });
   if (!send.ok && /error/i.test(send.stdout + send.stderr)) return { sessionId, error: (send.stderr || send.stdout).slice(-200) };
   return { sessionId };
 }
 
 // Pull the trace. done = session reached idle/terminated.
 export async function getTrace(sessionId: string): Promise<{ events: TraceEvent[]; done: boolean }> {
-  const out = await run("ant", ["beta:sessions:events", "list", "--session-id", sessionId, "--format", "jsonl"], { timeoutMs: 20000 });
+  const out = await run("ant", ["beta:sessions:events", "list", "--session-id", sessionId, "--format", "jsonl"], { cwd: process.cwd(), timeoutMs: 20000 });
   const rows = parseJsonl(out.stdout);
   let done = false;
   const events: TraceEvent[] = rows.map((d) => {

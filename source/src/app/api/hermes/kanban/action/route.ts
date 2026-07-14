@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "unknown action" }, { status: 400 });
   }
 
-  const out = await run("hermes", args, { timeoutMs });
+  const out = await run("hermes", args, { cwd: process.cwd(), timeoutMs });
   // Try to parse JSON output, fall back to plain text
   let parsed: unknown = null;
   try { parsed = JSON.parse(out.stdout); } catch {}

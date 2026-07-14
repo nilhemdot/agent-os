@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   // openclaw agent --local --agent <id> -m <prompt+history> --json --timeout 120
   const out = await run("openclaw", [
     "agent", "--local", "--agent", agentId, "-m", fullPrompt, "--json", "--timeout", "120",
-  ], { timeoutMs: 150_000 });
+  ], { cwd: process.cwd(), timeoutMs: 150_000 });
 
   // Try to parse JSON payload from stdout (may include leading non-JSON log lines)
   let text = "";

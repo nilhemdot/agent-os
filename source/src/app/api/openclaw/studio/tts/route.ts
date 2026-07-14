@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     "--json",
   ];
 
-  const out = await run("openclaw", args, { timeoutMs: 60_000 });
+  const out = await run("openclaw", args, { cwd: process.cwd(), timeoutMs: 60_000 });
   const firstBrace = out.stdout.indexOf("{");
   let payload: { ok?: boolean; provider?: string; voice?: string; outputs?: { path: string; mimeType: string; size: number }[] } = {};
   if (firstBrace !== -1) {

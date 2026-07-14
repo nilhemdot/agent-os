@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   if (!config.ant) return NextResponse.json({ connected: false, reason: "not-installed" });
   // verify it's Anthropic's ant (Apache Ant also lives at `ant`)
-  const v = await run("ant", ["--version"], { timeoutMs: 6000 });
+  const v = await run("ant", ["--version"], { cwd: process.cwd(), timeoutMs: 6000 });
   const txt = (v.stdout + " " + v.stderr).toLowerCase();
   const isApacheAnt = /apache ant/.test(txt);
   const looksClaude = /anthropic|claude|platform/.test(txt) || (v.ok && !isApacheAnt);
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const isMeta = parts.some((p) => p === "--help" || p === "-h" || p === "--version" || p === "auth");
   const args = hasFormat || isMeta ? parts : [...parts, "--format", "json"];
 
-  const out = await run("ant", args, { timeoutMs: 60_000 });
+  const out = await run("ant", args, { cwd: process.cwd(), timeoutMs: 60_000 });
   let parsed: unknown = null;
   const trimmed = out.stdout.trim();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) { try { parsed = JSON.parse(trimmed); } catch { /* raw */ } }

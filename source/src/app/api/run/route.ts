@@ -75,6 +75,6 @@ export async function POST(req: Request) {
   if (!safe(agent, args)) {
     return NextResponse.json({ error: "command not allowlisted", agent, args }, { status: 403 });
   }
-  const out = await run(agent, args, { timeoutMs: 15000 });
+  const out = await run(agent, args, { cwd: process.cwd(), timeoutMs: 15000 });
   return NextResponse.json({ agent, args, ...out });
 }

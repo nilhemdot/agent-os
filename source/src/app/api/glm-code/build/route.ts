@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawnStream } from "@/lib/runner";
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -42,7 +42,6 @@ export async function POST(req: Request) {
     "-p", prompt.trim(),
     "--output-format", "stream-json",
     "--verbose",
-    "--permission-mode", "bypassPermissions",
     "--model", GLM_CODE_MODEL,
   ];
 
@@ -58,10 +57,7 @@ export async function POST(req: Request) {
       // captured from the final result event so we can log it (history + Obsidian)
       let resOk = false, resCost: number | undefined, resTurns: number | undefined, resMs: number | undefined;
 
-      const child = spawn("claude", args, {
-        cwd,
-        env: { ...process.env, ...glmcodeSpawnEnv(), PATH: BIN_PATH },
-      });
+      const child = spawnStream("claude", args, { cwd, extraEnv: { ...glmcodeSpawnEnv(), PATH: BIN_PATH } });
       // `claude -p` waits ~3s for piped stdin; we have none, so close it immediately.
       try { child.stdin?.end(); } catch {}
 

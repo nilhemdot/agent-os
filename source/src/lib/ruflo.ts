@@ -136,20 +136,20 @@ export async function launchSeoSwarm(objective: string): Promise<LaunchResult> {
   const obj = objective.trim().slice(0, 400) || "Build a complete SEO strategy";
 
   // 1. init swarm coordination
-  const init = await run("ruflo", ["swarm", "init", "--topology", "hierarchical", "--max-agents", "14"], { timeoutMs: 30000 });
+  const init = await run("ruflo", ["swarm", "init", "--topology", "hierarchical", "--max-agents", "14"], { cwd: process.cwd(), timeoutMs: 30000 });
   if (!init.ok) errors.push(`init: ${init.stderr.slice(0, 200)}`);
 
   // 2. spawn the SEO roster (each is a quick registration)
   let spawned = 0;
   for (const r of SEO_ROSTER) {
     if (!/^[a-z0-9-]{1,40}$/.test(r.type) || !/^[a-z0-9-]{1,40}$/.test(r.name)) continue;
-    const s = await run("ruflo", ["agent", "spawn", "-t", r.type, "-n", r.name, "--task", `${r.name.replace(/-/g, " ")} for: ${obj}`, "--timeout", "120"], { timeoutMs: 25000 });
+    const s = await run("ruflo", ["agent", "spawn", "-t", r.type, "-n", r.name, "--task", `${r.name.replace(/-/g, " ")} for: ${obj}`, "--timeout", "120"], { cwd: process.cwd(), timeoutMs: 25000 });
     if (s.ok) spawned++;
   }
 
   // 3. kick the swarm to actually coordinate work (background — don't block).
   //    We don't await long; just fire it so agents activate. The graph polls state.
-  void run("ruflo", ["swarm", "start", "-o", obj, "--parallel"], { timeoutMs: 8000 }).catch(() => {});
+  void run("ruflo", ["swarm", "start", "-o", obj, "--parallel"], { cwd: process.cwd(), timeoutMs: 8000 }).catch(() => {});
 
   const state = await readState();
   return { ok: errors.length === 0, swarmId: state.swarm?.id, spawned, objective: obj, errors };

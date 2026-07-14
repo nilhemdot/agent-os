@@ -20,6 +20,6 @@ export async function GET(req: Request) {
   const action = (url.searchParams.get("action") ?? "health") as Action;
   const args = COMMANDS[action];
   if (!args) return NextResponse.json({ error: "unknown action" }, { status: 400 });
-  const out = await run("openclaw", args, { timeoutMs: 8000 });
+  const out = await run("openclaw", args, { cwd: process.cwd(), timeoutMs: 8000 });
   return NextResponse.json({ action, ...out });
 }

@@ -14,10 +14,10 @@ let inflight: Promise<unknown> | null = null;
 
 async function computeVitals() {
   const [claude, openclaw, hermes, antigravity] = await Promise.all([
-    run("claude", ["--version"], { timeoutMs: 6000 }),
-    run("openclaw", ["health"], { timeoutMs: 6000 }),
-    run("hermes", ["status"], { timeoutMs: 8000 }),
-    run("antigravity", ["--version"], { timeoutMs: 6000 }),
+    run("claude", ["--version"], { cwd: process.cwd(), timeoutMs: 6000 }),
+    run("openclaw", ["health"], { cwd: process.cwd(), timeoutMs: 6000 }),
+    run("hermes", ["status"], { cwd: process.cwd(), timeoutMs: 8000 }),
+    run("antigravity", ["--version"], { cwd: process.cwd(), timeoutMs: 6000 }),
   ]);
   return { claude, openclaw, hermes, antigravity };
 }

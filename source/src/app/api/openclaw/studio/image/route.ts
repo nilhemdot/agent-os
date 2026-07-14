@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     args.push("--count", String(count));
   }
 
-  const out = await run("openclaw", args, { timeoutMs: 120_000 });
+  const out = await run("openclaw", args, { cwd: process.cwd(), timeoutMs: 120_000 });
   const firstBrace = out.stdout.indexOf("{");
   let payload: { outputs?: { path: string; mimeType: string; size: number; width?: number; height?: number }[]; ok?: boolean; provider?: string; model?: string } = {};
   if (firstBrace !== -1) {

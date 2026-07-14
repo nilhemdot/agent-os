@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
+import { agentEnv } from "@/lib/runner";
 import { createWriteStream } from "node:fs";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
@@ -57,12 +58,7 @@ export async function POST(req: Request) {
     "--workers", "2",
   ], {
     cwd,
-    env: {
-      ...process.env,
-      PATH: (process.env.PATH ?? "") + ":/opt/homebrew/bin:/usr/local/bin",
-      HOME: process.env.HOME ?? "",
-      NO_COLOR: "1",
-    },
+    env: agentEnv(),
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
   });

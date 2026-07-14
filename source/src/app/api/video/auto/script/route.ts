@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
+import { spawnStream } from "@/lib/runner";
 import { CLAUDE_MODEL, config } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -54,13 +54,12 @@ RULES:
 
 function runClaude(system: string, prompt: string, timeoutMs: number): Promise<{ out: string; err: string }> {
   return new Promise((resolve) => {
-    const bin = config.claude || "claude";
     // Allow web tools so it can actually research; harmless if unavailable.
-    const child = spawn(bin, [
+    const child = spawnStream("claude", [
       "-p", "--model", CLAUDE_MODEL,
       "--allowedTools", "WebSearch,WebFetch",
       "--append-system-prompt", system, prompt,
-    ], { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] });
+    ], { cwd: process.cwd() });
     let out = "", err = "";
     const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch {} resolve({ out, err: err + "\n[timeout]" }); }, timeoutMs);
     child.stdout.on("data", (d) => { out += String(d); });
