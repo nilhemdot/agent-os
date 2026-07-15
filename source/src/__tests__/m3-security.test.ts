@@ -1,11 +1,22 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { approveWorkspaceConfig, scanWorkspaceConfig } from "@/lib/configFirewall";
 import { canaryForRun, containsSecret, redactText, RedactTransform } from "@/lib/credentialBroker";
 import { selectSandbox } from "@/lib/sandbox";
 import { agentEnv, scanWorkspaceForSecrets } from "@/lib/runner";
+
+// ponytail: detect srt on PATH the same way sandbox.ts does
+function hasSrt(): boolean {
+  try {
+    const result = spawnSync("sh", ["-c", "command -v srt"], { encoding: "utf8", timeout: 2_000 });
+    return Boolean(result.stdout?.trim());
+  } catch {
+    return false;
+  }
+}
 
 describe("M3 security gate", () => {
   it("quarantines a hostile hook verbatim before approval", () => {
@@ -45,7 +56,7 @@ describe("M3 security gate", () => {
     expect(selectSandbox("codex", "/bin/echo", ["exec", "hello"], {})).toMatchObject({ sandbox: "codex-landlock:workspace-write", args: ["exec", "--sandbox", "workspace-write", "hello"] });
   });
 
-  it("wraps claude through srt when srt is on PATH (M3.9/M3.10)", () => {
+  it.skipIf(!hasSrt())("wraps claude through srt when srt is on PATH (M3.9/M3.10)", () => {
     const launch = selectSandbox("claude", "/opt/claude/bin/claude", ["-p", "hi"], {});
     expect(launch.sandbox).toMatch(/^srt:/);
     expect(launch.bin).toMatch(/srt$/);

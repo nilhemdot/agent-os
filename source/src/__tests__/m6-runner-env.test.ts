@@ -2,6 +2,7 @@ import path from "node:path";
 import os from "node:os";
 import net from "node:net";
 import { mkdtempSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 // config (loaded transitively by runner) captures AGENTIC_OS_CLAUDE_BIN + AGENTOS_DB_PATH
@@ -12,6 +13,16 @@ process.env.AGENTIC_OS_CLAUDE_BIN = "/bin/echo"; // echoes its args to stdout
 process.env.AGENTOS_DB_PATH = path.join(os.tmpdir(), `agentos-m6env-${process.pid}.db`);
 
 const { allocatePort, withPortEnv, nativeCheckpointEvent, agentEnv } = await import("@/lib/runner");
+
+// ponytail: detect srt on PATH the same way sandbox.ts does
+function hasSrt(): boolean {
+  try {
+    const result = spawnSync("sh", ["-c", "command -v srt"], { encoding: "utf8", timeout: 2_000 });
+    return Boolean(result.stdout?.trim());
+  } catch {
+    return false;
+  }
+}
 
 // Bind a server on a specific port; resolves once listening. Used to prove a port
 // is free (bindable) and to hold a port so the kernel cannot re-hand it out.
@@ -82,7 +93,7 @@ describe("M6.1 nativeCheckpointEvent (the emit decision)", () => {
 // End-to-end through the real run() chokepoint: a claude run whose stdout carries a
 // JSONL session_id must land both a port_allocated event AND a native_checkpoint event.
 describe("M6 run() chokepoint (real spawn)", () => {
-  it("records port_allocated and native_checkpoint for a claude run", async () => {
+  it.skipIf(!hasSrt())("records port_allocated and native_checkpoint for a claude run", async () => {
     const { run } = await import("@/lib/runner");
     const { createRun, listRunEvents } = await import("@/lib/ledger");
 
