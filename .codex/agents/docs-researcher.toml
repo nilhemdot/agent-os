@@ -1,4 +1,4 @@
-model = "gpt-5.4"
+model = "gpt-4.1"
 model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 
