@@ -13,9 +13,9 @@ Prereqs: M0–M7 committed (latest: 95d95f5 M7 memory with provenance).
 - [x] M8.8. Memory poisoning: quarantine invariant under adversarial inserts (bulk, unicode, FTS5 query-syntax abuse) — **test-green**
 
 ## Phase 2 — Eval harness + corpus
-- [ ] M8.9. Eval runner: executes corpus cases, records per-run metrics to node:sqlite (success, verification pass rate, human corrections, cost-of-pass, time-to-approved-result, unsafe-action-proposal rate, false-positive block rate, restart-recovery rate, context tokens)
+- [x] M8.9. Eval runner: executes corpus cases, records per-run metrics to node:sqlite (success, verification pass rate, human corrections, cost-of-pass, time-to-approved-result, unsafe-action-proposal rate, false-positive block rate, restart-recovery rate, context tokens) — **hybrid fixture/live, fixture-complete**
 - [ ] M8.10. Corpus: 20 repo-reading, 20 small code changes, 10 dependency upgrades, 10 failure-recovery, 20 adversarial/policy, 10 memory-retrieval (90 cases)
-- [ ] M8.11. Stochastic cases run ≥3×; variance reported
+- [x] M8.11. Stochastic cases run ≥3×; variance reported — **stddev + repeat implemented**
 - [ ] M8.12. Eval dashboard page: stable baseline visible
 
 ## Phase 3 — CI + distribution
@@ -26,3 +26,7 @@ Prereqs: M0–M7 committed (latest: 95d95f5 M7 memory with provenance).
 ## Constraints (standing)
 - [ ] M8.16. node:sqlite only; no new deps without justification; Next.js 16 non-standard (read node_modules/next/dist/docs first); localhost-only; npm from source/; every adversarial item is a regression test, not a checklist item
 - [x] M8.17. (discovered post-commit) Background security review flagged 6 issues in M7 commit 95d95f5, 3 named in promote route: authentication-bypass, audit-log-integrity, state-inconsistency (+3 unnamed elsewhere in commit surface). Validate with opus, apply minimal fixes, regression tests, suite green.
+
+## Decisions (M8 Phase 2, user-approved 2026-07-15)
+- Eval exec model: HYBRID — fixtures default (deterministic, CI, $0) + `--live` opt-in flag for task-success cases. Two paths, one runner.
+- Build order: eval harness (M8.9-M8.12) → CI (M8.13) → distribution (M8.14) → exit gate (M8.15).

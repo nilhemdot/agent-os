@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start -H 127.0.0.1",
     "worker": "tsx src/worker.ts",
+    "x": "node scripts/x.mjs",
+    "eval": "tsx src/scripts/eval.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

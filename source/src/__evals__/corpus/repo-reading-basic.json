@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-basic",
+  "category": "repo-reading",
+  "prompt": "Read the source/package.json file and explain the main dependencies.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-basic-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}
