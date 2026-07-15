@@ -245,7 +245,7 @@ export default function ThumbnailStudio() {
         {enlarged && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 grid place-items-center p-8" style={{ background: "rgba(0,0,0,0.8)" }} onClick={() => setEnlarged(null)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            { }
             <motion.img initial={{ scale: 0.96 }} animate={{ scale: 1 }} exit={{ scale: 0.96 }} src={enlarged} alt="" className="max-w-[90vw] max-h-[85vh] rounded-lg" onClick={(e) => e.stopPropagation()} />
           </motion.div>
         )}

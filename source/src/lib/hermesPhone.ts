@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, writeFileSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, openSync } from "node:fs";
 import { hermesHome } from "@/lib/config";
 import { spawn, execSync } from "node:child_process";
 import path from "node:path";
@@ -127,8 +127,7 @@ export function installCloudflared(): { state: "present" | "installing" | "start
   for (const b of ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]) if (existsSync(b)) { brew = b; break; }
   if (!brew) { try { brew = execSync("command -v brew", { encoding: "utf8" }).trim(); } catch {} }
   if (!brew) return { state: "no-brew" };
-  const fs = require("node:fs") as typeof import("node:fs");
-  const out = fs.openSync(INSTALL_LOG, "a");
+  const out = openSync(INSTALL_LOG, "a");
   const child = spawn(brew, ["install", "cloudflared"], {
     detached: true,
     stdio: ["ignore", out, out],

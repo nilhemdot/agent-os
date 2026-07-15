@@ -1,7 +1,7 @@
 import { orKey, nousToken, workerAct, verdict, DEFAULT_JUDGE } from "@/lib/loopEngine";
 import { minimaxToken } from "@/lib/hermesStudio";
 import { writeFile, mkdir, readdir, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
@@ -27,11 +27,10 @@ function findChrome(): string | null {
   _chrome = null;
   try {
     const base = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
-    const fs = require("node:fs") as typeof import("node:fs");
-    for (const d of fs.readdirSync(base)) {
+    for (const d of readdirSync(base)) {
       if (!d.startsWith("chromium_headless_shell")) continue;
       const inner = path.join(base, d);
-      for (const sub of fs.readdirSync(inner)) {
+      for (const sub of readdirSync(inner)) {
         const bin = path.join(inner, sub, "chrome-headless-shell");
         if (existsSync(bin)) { _chrome = bin; return _chrome; }
       }

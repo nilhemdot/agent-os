@@ -3,7 +3,7 @@
 // because the lists are huge (1.2k avatars, 2.4k voices) and rarely change.
 
 import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
@@ -16,7 +16,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h — lists basically never chang
 export function readHeyGenKey(): string | null {
   if (!existsSync(KEY_FILE)) return null;
   try {
-    const txt = require("node:fs").readFileSync(KEY_FILE, "utf8");
+    const txt = readFileSync(KEY_FILE, "utf8");
     const m = /^HEYGEN_API_KEY=(.+)$/m.exec(txt);
     return m ? m[1].trim() : null;
   } catch { return null; }

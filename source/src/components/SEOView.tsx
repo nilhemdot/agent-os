@@ -132,7 +132,7 @@ export default function SEOView() {
     setRLoading(false);
   }
 
-  function useTopic(kw: string) {
+  function applyTopic(kw: string) {
     setKeyword(kw);
     setTab("generate");
   }
@@ -525,7 +525,7 @@ export default function SEOView() {
                         </div>
                       )}
                     </div>
-                    <button onClick={() => useTopic(t.keyword)} className="flex items-center gap-1.5 px-3 h-[34px] rounded-lg border text-[12.5px] shrink-0 transition border-[rgba(163,230,53,0.35)] text-lime-300 hover:bg-[rgba(163,230,53,0.14)]">
+                    <button onClick={() => applyTopic(t.keyword)} className="flex items-center gap-1.5 px-3 h-[34px] rounded-lg border text-[12.5px] shrink-0 transition border-[rgba(163,230,53,0.35)] text-lime-300 hover:bg-[rgba(163,230,53,0.14)]">
                       <Sparkles size={13} /> Use topic <ArrowRight size={12} />
                     </button>
                   </div>

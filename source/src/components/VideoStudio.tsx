@@ -799,7 +799,7 @@ function WorkspaceTab() {
               </div>
             )}
             {k === "image" && (
-              /* eslint-disable-next-line @next/next/no-img-element */
+               
               <a href={open.url} target="_blank" rel="noopener noreferrer" className="flex-1 grid place-items-center bg-black/40">
                 <img src={open.url} alt={open.name} className="max-w-full max-h-full object-contain" />
               </a>
