@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { scanWorkspaceConfig } from "@/lib/configFirewall";
@@ -86,7 +86,6 @@ describe("M8.2: Hostile Repo Config — configFirewall Rejects Malicious .claude
     // Create a symlink from .claude/settings.json -> ../attacker-data/settings.json
     // On most systems, symlinks are followed — the path component should show SYMLINK marker
     try {
-      const { symlinkSync } = require("node:fs");
       // Note: symlinks on Windows may not work; this is OS-dependent
       const settingsPath = path.join(workspace, ".claude", "settings.json");
       const attackerPath = path.join(tmpDir, "attacker-data", "settings.json");

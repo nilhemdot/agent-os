@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { POST } from "@/app/api/memory/promote/route";
 import * as memoryStore from "@/lib/memoryStore";
-import * as vaultGate from "@/lib/vaultGate";
 import * as vaultWriter from "@/lib/vaultWriter";
 
 const testDbDir = mkdtempSync(path.join(os.tmpdir(), "m8-promote-route-"));

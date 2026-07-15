@@ -40,6 +40,7 @@
     "@types/three": "^0.184.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.10",
+    "globals": "^17.7.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",
     "typescript": "^5",

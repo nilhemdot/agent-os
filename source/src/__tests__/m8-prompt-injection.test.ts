@@ -42,6 +42,8 @@ describe("M8.1: Prompt Injection — Hostile Content Never Reaches Resident Cont
       sourcePath: "web/exfil",
     });
 
+    expect(hostile.trust).toBe("quarantined");
+
     // Search without includeQuarantined flag
     const result = memoryStore.searchMemory("ignore", {
       includeQuarantined: false,

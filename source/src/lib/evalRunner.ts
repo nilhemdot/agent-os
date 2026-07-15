@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
-import path from "node:path";
-import { recordRun, type EvalRunMetrics, getRuns } from "./evalStore";
-import { type EvalCase, type FixtureResult, loadCorpus } from "./evalCorpus";
+import { recordRun, type EvalRunMetrics } from "./evalStore";
+import { type EvalCase, type FixtureResult } from "./evalCorpus";
 
 export async function runCase(
   evalCase: EvalCase,
@@ -76,6 +75,7 @@ function runCaseFixture(evalCase: EvalCase): EvalRunMetrics {
 
 async function runCaseLive(evalCase: EvalCase): Promise<EvalRunMetrics> {
   // ponytail: live runner not yet implemented, guards on env var
+  void evalCase; // Intentionally unused; placeholder for future implementation
   if (process.env.AGENTOS_EVAL_LIVE !== "1") {
     throw new Error(
       `Live mode requires AGENTOS_EVAL_LIVE=1 environment variable`

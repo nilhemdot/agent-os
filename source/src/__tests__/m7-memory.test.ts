@@ -10,7 +10,6 @@ import {
   promoteMemory,
   demoteMemory,
   memoryStats,
-  type Memory,
 } from "../lib/memoryStore";
 
 const testDbDir = mkdtempSync(path.join(os.tmpdir(), "m7-memory-"));
@@ -24,7 +23,7 @@ function clearMemoryDb(): void {
       db.exec("DELETE FROM memory_audit");
       db.exec("DELETE FROM memory_fts");
       db.exec("DELETE FROM memory");
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Tables don't exist yet; db will initialize on first store call
       if (!String(e).includes("no such table")) {
         throw e;
@@ -161,11 +160,7 @@ describe("M7 Memory Store", () => {
     });
 
     it("includes human-origin records even if not promoted", () => {
-      const human = addMemory({
-        tier: "core",
-        origin: "human",
-        content: "user memory",
-      });
+      const human = addMemory({ tier: "core", origin: "human", content: "user memory", });
       const context = getResidentContext();
       expect(context.map((m) => m.id)).toContain(human.id);
     });
@@ -273,7 +268,7 @@ describe("M7 Memory Store", () => {
     it("rejects invalid tier", () => {
       expect(() => {
         addMemory({
-          tier: "invalid" as any,
+          tier: "invalid" as unknown as "core" | "recall" | "archival",
           origin: "human",
           content: "test",
         });
@@ -284,7 +279,7 @@ describe("M7 Memory Store", () => {
       expect(() => {
         addMemory({
           tier: "core",
-          origin: "invalid" as any,
+          origin: "invalid" as unknown as "human" | "agent" | "web" | "repo",
           content: "test",
         });
       }).toThrow("Invalid origin");
@@ -337,7 +332,7 @@ describe("M7 Memory Store", () => {
     });
 
     it("counts by trust", () => {
-      const human = addMemory({ tier: "core", origin: "human", content: "trusted" });
+      addMemory({ tier: "core", origin: "human", content: "trusted" });
       const agent = addMemory({ tier: "core", origin: "agent", content: "quarantined" });
       promoteMemory(agent.id, "user");
 

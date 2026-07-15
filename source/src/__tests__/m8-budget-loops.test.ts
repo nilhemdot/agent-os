@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { CircuitBreaker, defaultBreakerPolicy } from "@/lib/circuitBreaker";
 
 describe("M8.7: Budget Loops — Circuit Breaker Trips on Runaway Cost Events", () => {

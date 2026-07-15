@@ -29,19 +29,14 @@ describe("M8.8: Memory Poisoning — Quarantine Invariant Survives Adversarial I
 
     let inserted = 0;
     for (const content of hostileContents) {
-      try {
-        const mem = memoryStore.addMemory({
-          tier: "recall",
-          origin: "web",
-          content,
-          sourcePath: "web/attack",
-        });
-        expect(mem.trust).toBe("quarantined");
-        inserted++;
-      } catch (err) {
-        // Should not crash, but if it does, we caught it
-        throw err;
-      }
+      const mem = memoryStore.addMemory({
+        tier: "recall",
+        origin: "web",
+        content,
+        sourcePath: "web/attack",
+      });
+      expect(mem.trust).toBe("quarantined");
+      inserted++;
     }
 
     expect(inserted).toBe(hostileContents.length);
@@ -102,7 +97,7 @@ describe("M8.8: Memory Poisoning — Quarantine Invariant Survives Adversarial I
         // Should return results or empty set, not crash
         expect(result.trusted).toBeDefined();
         expect(result.quarantined).toBeDefined();
-      } catch (err) {
+      } catch (err: unknown) {
         error = err as Error;
       }
 
@@ -178,7 +173,7 @@ describe("M8.8: Memory Poisoning — Quarantine Invariant Survives Adversarial I
       result = memoryStore.searchMemory("content:");
       // Should handle gracefully (may or may not match depending on FTS5 parsing)
       expect(result).toBeDefined();
-    } catch (err) {
+    } catch {
       // FTS5 parsing error is acceptable; the important thing is the query
       // doesn't actually DROP/DELETE/modify the table
     }
@@ -228,7 +223,7 @@ describe("M8.8: Memory Poisoning — Quarantine Invariant Survives Adversarial I
   });
 
   it("should not expose quarantined content via search with includeQuarantined=false", () => {
-    const hostileMemories = Array.from({ length: 10 }, (_, i) =>
+    Array.from({ length: 10 }, (_, i) =>
       memoryStore.addMemory({
         tier: "recall",
         origin: "web",

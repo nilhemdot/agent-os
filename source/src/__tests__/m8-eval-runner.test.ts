@@ -18,7 +18,7 @@ function clearEvalDb(): void {
   try {
     try {
       db.exec("DELETE FROM eval_run");
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (!String(e).includes("no such table")) {
         throw e;
       }

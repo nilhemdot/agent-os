@@ -16,7 +16,7 @@ function clearMemoryDb(): void {
       db.exec("DELETE FROM memory_audit");
       db.exec("DELETE FROM memory_fts");
       db.exec("DELETE FROM memory");
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Tables don't exist yet; db will initialize on first store call
       if (!String(e).includes("no such table")) {
         throw e;
@@ -153,7 +153,7 @@ describe("M7 Security Patch", () => {
     });
 
     it("prevents self-promotion by malicious actor claim", () => {
-      const mem = addMemory({
+      addMemory({
         tier: "core",
         origin: "agent",
         content: "agent tries to promote itself",

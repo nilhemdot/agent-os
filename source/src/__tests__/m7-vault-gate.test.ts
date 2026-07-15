@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vites
 import { mkdtempSync, rmSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { DatabaseSync } from "node:sqlite";
 import * as memoryStore from "@/lib/memoryStore";
 import * as vaultGate from "@/lib/vaultGate";
 import * as vaultWriter from "@/lib/vaultWriter";
@@ -101,8 +102,7 @@ describe("M7 Vault Gate", () => {
   describe("promoteToVault", () => {
     it("promotion writes quarantined content to vault exactly once", async () => {
       // Mock vault writer
-      const mockAppendMemory = vi
-        .spyOn(vaultWriter, "appendMemory")
+      const mockAppendMemory = vi.spyOn(vaultWriter, "appendMemory")
         .mockResolvedValue({ path: "Agentic OS/Memories/2026-07-13.md", ok: true });
 
       // Create agent-origin memory (quarantined)
@@ -138,8 +138,7 @@ describe("M7 Vault Gate", () => {
 
     it("rolls back promotion when vault write fails", async () => {
       // Mock vault writer to fail
-      const mockAppendMemory = vi
-        .spyOn(vaultWriter, "appendMemory")
+      vi.spyOn(vaultWriter, "appendMemory")
         .mockResolvedValue({ path: "", ok: false });
 
       // Create agent-origin memory (quarantined)
@@ -171,8 +170,7 @@ describe("M7 Vault Gate", () => {
 
     it("returns data field with promoted record on success", async () => {
       // Mock vault writer
-      const mockAppendMemory = vi
-        .spyOn(vaultWriter, "appendMemory")
+      vi.spyOn(vaultWriter, "appendMemory")
         .mockResolvedValue({ path: "Agentic OS/Memories/2026-07-13.md", ok: true });
 
       const mem = memoryStore.addMemory({
@@ -228,7 +226,6 @@ describe("M7 Vault Gate", () => {
 
   describe("promotion audit log", () => {
     it("promotion creates exactly one audit entry", () => {
-      const { DatabaseSync } = require("node:sqlite");
       const db = new DatabaseSync(process.env.AGENTOS_MEMORY_DB_PATH!);
 
       const mem = memoryStore.addMemory({
@@ -244,7 +241,7 @@ describe("M7 Vault Gate", () => {
       const promoted = memoryStore.promoteMemory(mem.id, "user");
 
       // Check exactly one audit entry exists
-      const auditRows = db.prepare("SELECT * FROM memory_audit WHERE memory_id = ? AND action = 'promote'").all(mem.id) as any[];
+      const auditRows = db.prepare("SELECT * FROM memory_audit WHERE memory_id = ? AND action = 'promote'").all(mem.id) as Record<string, unknown>[];
       expect(auditRows).toHaveLength(1);
       expect(auditRows[0].actor).toBe("user");
       expect(promoted.promoted_by).toBe("user");

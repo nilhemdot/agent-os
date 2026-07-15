@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import path from "node:path";
 import os from "node:os";
 import { mkdtempSync, rmSync } from "node:fs";
+import fs from "node:fs";
 
 describe("M8.5: Env Exfiltration — API Routes Don't Leak process.env Values", () => {
   let tmpDir: string;
@@ -38,7 +39,7 @@ describe("M8.5: Env Exfiltration — API Routes Don't Leak process.env Values", 
     // - /api/memory/promote -> { ok, path?, error? }
 
     // Check that route files don't accidentally stringify process.env
-    const fs = require("node:fs");
+    
     const routeFiles = [
       "source/src/app/api/memory/search/route.ts",
       "source/src/app/api/memory/resident/route.ts",
@@ -75,7 +76,7 @@ describe("M8.5: Env Exfiltration — API Routes Don't Leak process.env Values", 
     // All other process.env values must be kept on the server side.
 
     // Check that FAKE_API_KEY (server-side secret) is never referenced in client code
-    const fs = require("node:fs");
+    
 
     // Scan component files for process.env references
     const componentFiles = [
@@ -130,10 +131,7 @@ describe("M8.5: Env Exfiltration — API Routes Don't Leak process.env Values", 
     // This is a static analysis check: scan all route files for
     // patterns that would expose process.env in a response.
 
-    const fs = require("node:fs");
-    const path_ = require("node:path");
-
-    const apiDir = path_.join(
+    const apiDir = path.join(
       __dirname,
       "..",
       "..",
@@ -151,7 +149,7 @@ describe("M8.5: Env Exfiltration — API Routes Don't Leak process.env Values", 
       try {
         const entries = fs.readdirSync(dir);
         for (const entry of entries) {
-          const full = path_.join(dir, entry);
+          const full = path.join(dir, entry);
           const stat = fs.statSync(full);
           if (stat.isDirectory()) {
             findRoutes(full, routes);
@@ -191,7 +189,7 @@ describe("M8.5: Env Exfiltration — API Routes Don't Leak process.env Values", 
     // Only strictly necessary public vars should ever be in a client response.
 
     // Check that routes don't include NODE_ENV in their responses
-    const fs = require("node:fs");
+    
 
     const searchRoutePath = path.join(
       __dirname,

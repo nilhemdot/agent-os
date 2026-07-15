@@ -386,7 +386,7 @@ export async function upsertEnv(vars: Record<string, string>): Promise<{ ok: boo
 // quotes and escape inner double quotes + backslashes. dotenv parsers vary;
 // this works with python-dotenv (what Hermes uses).
 function escapeEnvValue(v: string): string {
-  if (/^[A-Za-z0-9._/:@\-]*$/.test(v)) return v;
+  if (/^[A-Za-z0-9._/:@-]*$/.test(v)) return v;
   return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
@@ -486,7 +486,7 @@ export async function setToolsInclude(name: string, tools: string[]): Promise<{ 
     if (typeof t !== "string" || t.length === 0 || t.length > 200) {
       return { ok: false, error: `invalid tool name: ${t}` };
     }
-    if (!/^[A-Za-z0-9_.\-]+$/.test(t)) {
+    if (!/^[A-Za-z0-9_.-]+$/.test(t)) {
       return { ok: false, error: `tool name contains illegal chars: ${t}` };
     }
   }

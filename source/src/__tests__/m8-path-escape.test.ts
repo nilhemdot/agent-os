@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { spawnSync } from "node:child_process";
 import * as checkpoints from "@/lib/checkpoints";
 import { scanWorkspaceConfig } from "@/lib/configFirewall";
 
@@ -21,15 +22,15 @@ describe("M8.4: Symlink/Path Escape — vaultWriter and Checkpoints Reject ../ a
 
   it("should reject checkpoints with ../ traversal in sourcePath", () => {
     // Initialize a git workspace
-    require("child_process").spawnSync("git", ["init"], {
+    spawnSync("git", ["init"], {
       cwd: workspace,
       stdio: "pipe",
     });
-    require("child_process").spawnSync("git", ["config", "user.email", "test@example.com"], {
+    spawnSync("git", ["config", "user.email", "test@example.com"], {
       cwd: workspace,
       stdio: "pipe",
     });
-    require("child_process").spawnSync("git", ["config", "user.name", "Test"], {
+    spawnSync("git", ["config", "user.name", "Test"], {
       cwd: workspace,
       stdio: "pipe",
     });
@@ -43,11 +44,11 @@ describe("M8.4: Symlink/Path Escape — vaultWriter and Checkpoints Reject ../ a
     writeFileSync(internalFile, "workspace content");
 
     // Add and commit
-    require("child_process").spawnSync("git", ["add", "."], {
+    spawnSync("git", ["add", "."], {
       cwd: workspace,
       stdio: "pipe",
     });
-    require("child_process").spawnSync("git", ["commit", "-m", "init"], {
+    spawnSync("git", ["commit", "-m", "init"], {
       cwd: workspace,
       stdio: "pipe",
     });

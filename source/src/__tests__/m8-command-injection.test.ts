@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
 import path from "node:path";
+import fs from "node:fs";
 
 describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Interpolation", () => {
   it("should verify that checkpoints.ts uses spawnSync with array args (not shell strings)", () => {
-    const fs = require("node:fs");
-
     const checkpointsPath = path.join(
       __dirname,
       "..",
@@ -30,7 +29,7 @@ describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Inte
   });
 
   it("should verify that runner.ts uses array args for git commands", () => {
-    const fs = require("node:fs");
+    
 
     const runnerPath = path.join(__dirname, "..", "lib", "runner.ts");
 
@@ -64,7 +63,7 @@ describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Inte
   });
 
   it("should verify no shell expansion in vaultWriter operations", () => {
-    const fs = require("node:fs");
+    
 
     const vaultWriterPath = path.join(
       __dirname,
@@ -84,10 +83,11 @@ describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Inte
 
     // Should use path module for all path construction
     expect(content).toContain("import path from");
+
   });
 
   it("should verify ledger.ts uses safe DB operations, not exec for queries", () => {
-    const fs = require("node:fs");
+    
 
     const ledgerPath = path.join(__dirname, "..", "lib", "ledger.ts");
 
@@ -102,14 +102,11 @@ describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Inte
 
     // If execSync/exec appears, it should only be for non-query operations
     // (e.g., git commands, where array args are used)
-    const execMatches = Array.from(content.matchAll(/exec/g));
-    for (const _ of execMatches) {
-      // Each exec should be checked, but ideally not used for user input
-    }
+    // Verify exec calls exist (checking earlier in test)
   });
 
   it("should verify memory operations use prepared statements, not interpolation", () => {
-    const fs = require("node:fs");
+    
 
     const memoryStorePath = path.join(
       __dirname,
