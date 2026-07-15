@@ -1,18 +1,28 @@
-# M7 — Memory with Provenance (AgentOS_Revised_Build_Plan_v3.md §5 line 478, §3.4, §4.3)
+# M8 — Evals, Hardening, Release (AgentOS_Revised_Build_Plan_v3.md §5 "M8", weeks 12–14)
 
-Prereq verified: §3.4 threat model implemented (configFirewall.ts, M3 commits e28c2fd).
+Prereqs: M0–M7 committed (latest: 95d95f5 M7 memory with provenance).
 
-- [x] M7.1. `memory` table in node:sqlite exactly per §4.3: id, tier ('core'|'recall'|'archival'), origin ('human'|'agent'|'web'|'repo'), trust ('trusted'|'quarantined'), source_path, content, created_at, last_verified_at, promoted_by (NULL until human promotes)
-- [x] M7.2. INVARIANT enforced in code, not convention: origin != 'human' AND promoted_by IS NULL ⇒ record never enters resident context; new non-human records default trust='quarantined'
-- [x] M7.3. FTS5 index over memory.content (node:sqlite built-in, no embeddings, no new deps); search returns quarantined records flagged, never silently mixed with trusted
-- [x] M7.4. Promotion flow: explicit human action (API + UI) sets promoted_by + trust='trusted'; audit-logged; demotion possible
-- [x] M7.5. Vault write gate: agent-authored content NEVER written to Obsidian vault without human accept — route vaultWriter.ts callers through trust gate (vaultGate.ts: gateMemory, promoteToVault)
-- [x] M7.6. Three state classes kept separate: execution state (ledger.ts events — untouched), session memory (bounded, compactable), long-term knowledge (vault + FTS5 index); no cross-writes without gate
-- [x] M7.7. API routes: memory search, quarantine list, promote/demote, stats — consistent envelope, creds/input validated, fail closed (routes: search, quarantine, promote, demote, stats)
-- [x] M7.8. Context Window Viewer: per-block token count + origin visible before send; live total; biased toward human editing/pruning (no auto-accumulation UI)
-- [x] M7.9. Memory page UI: trust tier + origin visible on every record; quarantined visually distinct; promote/demote actions with two-click confirm idiom
-- [x] M7.10. Tests (vitest, no network): invariant (quarantined never resident), promotion flow, FTS5 search relevance + flagging, vault-gate refusal, poisoned-record scenario per exit gate
-- [x] M7.11. Exit gate demo: poisoned document planted in vault is retrievable but never enters resident context without human promotion; origin visible in viewer
-- [x] M7.12. Constraints: node:sqlite only (no better-sqlite3), Next.js 16 non-standard (read node_modules/next/dist/docs before framework code), localhost-only, no new deps, run npm from source/
-- [x] M7.13. (discovered in verification) Fix quarantine route: /api/memory/quarantine calls searchMemory("") which always returns empty — must list quarantined records; validate `actor` server-side in promote route (reject non-human actor values); tests for both
-- [x] M7.14. (discovered pre-commit) Test isolation: memoryStore.memoryDbPath() hardcodes ~/.agentic-os/memory.db — parallel vitest workers race on real db (flaky SQLITE lock failures) AND tests pollute user's real memory.db. Fix: AGENTOS_MEMORY_DB_PATH env override (mirror ledger.ts:140 AGENTOS_DB_PATH pattern); all 4 m7 test files set it to per-file temp path. Verify: full suite green 3 consecutive runs.
+## Phase 1 — Adversarial regression suite (local, vitest, no network)
+- [x] M8.1. Prompt injection: hostile content in memory/vault records cannot influence resident context without human promotion (extends M7 poisoned-record gate; regression test) — **test-green**
+- [x] M8.2. Hostile repo config: configFirewall blocks malicious .claude/settings, hooks, MCP declarations from opened repos (regression tests against M3 configFirewall.ts) — **test-green**
+- [x] M8.3. Malicious MCP tool descriptions: tool-description strings treated as untrusted; test firewall/sanitizer path — **gap-reported** (no sanitizer exists; documented with skipped test)
+- [x] M8.4. Symlink/path escape: vault writer, checkpoints, memory source_path reject traversal + symlink escapes — **test-green**
+- [x] M8.5. Env exfiltration: server-side key isolation holds — no route leaks env/keys in response envelopes (scan all API routes) — **test-green**
+- [x] M8.6. Command injection: any exec/spawn surface takes array args, never shell-interpolated user input — **test-green**
+- [x] M8.7. Budget loops: budget kernel/circuit breaker halts runaway loop scenario (regression test against M2) — **test-green**
+- [x] M8.8. Memory poisoning: quarantine invariant under adversarial inserts (bulk, unicode, FTS5 query-syntax abuse) — **test-green**
+
+## Phase 2 — Eval harness + corpus
+- [ ] M8.9. Eval runner: executes corpus cases, records per-run metrics to node:sqlite (success, verification pass rate, human corrections, cost-of-pass, time-to-approved-result, unsafe-action-proposal rate, false-positive block rate, restart-recovery rate, context tokens)
+- [ ] M8.10. Corpus: 20 repo-reading, 20 small code changes, 10 dependency upgrades, 10 failure-recovery, 20 adversarial/policy, 10 memory-retrieval (90 cases)
+- [ ] M8.11. Stochastic cases run ≥3×; variance reported
+- [ ] M8.12. Eval dashboard page: stable baseline visible
+
+## Phase 3 — CI + distribution
+- [ ] M8.13. Cross-platform CI matrix (ubuntu/macos/windows; WSL2 acceptable Windows answer)
+- [ ] M8.14. Single-binary-ish distribution decision + implementation
+- [ ] M8.15. Exit gate: adversarial suite green in CI; fresh install on 3 OSes → verified diff on real issue < 15 min
+
+## Constraints (standing)
+- [ ] M8.16. node:sqlite only; no new deps without justification; Next.js 16 non-standard (read node_modules/next/dist/docs first); localhost-only; npm from source/; every adversarial item is a regression test, not a checklist item
+- [x] M8.17. (discovered post-commit) Background security review flagged 6 issues in M7 commit 95d95f5, 3 named in promote route: authentication-bypass, audit-log-integrity, state-inconsistency (+3 unnamed elsewhere in commit surface). Validate with opus, apply minimal fixes, regression tests, suite green.
