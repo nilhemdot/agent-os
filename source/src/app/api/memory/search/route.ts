@@ -1,15 +1,40 @@
 import { NextResponse } from "next/server";
-import { searchNotes, searchOmi } from "@/lib/vault";
+import { searchMemory } from "@/lib/memoryStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+interface ApiResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
+
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const q = url.searchParams.get("q") ?? "";
-  const [notes, omi] = await Promise.all([
-    searchNotes(q, 30),
-    searchOmi(q, 30),
-  ]);
-  return NextResponse.json({ q, notes, omi });
+  try {
+    const url = new URL(req.url);
+    const q = url.searchParams.get("q") ?? "";
+    const includeQuarantined = url.searchParams.get("includeQuarantined") === "true";
+
+    if (!q.trim()) {
+      return NextResponse.json(
+        { ok: true, data: { trusted: [], quarantined: [] } } as ApiResponse<{
+          trusted: any[];
+          quarantined: any[];
+        }>,
+        { status: 200 }
+      );
+    }
+
+    const result = searchMemory(q, { includeQuarantined });
+    return NextResponse.json(
+      { ok: true, data: result } as ApiResponse<typeof result>,
+      { status: 200 }
+    );
+  } catch (err) {
+    return NextResponse.json(
+      { ok: false, error: String(err) } as ApiResponse<never>,
+      { status: 500 }
+    );
+  }
 }
