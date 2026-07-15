@@ -170,7 +170,7 @@ trigger: "When creating a new file"
 confidence: 0.9
 domain: code-style
 source: repo-analysis
-source_repo: nilhemdot/agent-os
+source_repo: https://github.com/nilhemdot/agent-os
 ---
 
 # Agent Os Instinct File Naming
@@ -253,7 +253,7 @@ source_repo: nilhemdot/agent-os
 
 ## Action
 
-Use alias import style
+Use relative imports for local modules and bare-module imports for dependencies
 
 ## Evidence
 
@@ -272,7 +272,7 @@ source_repo: nilhemdot/agent-os
 
 ## Action
 
-Use named exports
+Use named exports, but note that some components use default exports
 
 ## Evidence
 
@@ -392,5 +392,5 @@ Write a short, freeform message without a prefix (average length ~37 characters)
 ## Evidence
 
 - Pattern in commits.type
-- Example: 'Add AgentOS execution security kernel'
+- Example: 'feat: add agent-os ECC bundle'
 

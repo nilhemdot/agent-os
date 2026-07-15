@@ -1,4 +1,3 @@
-```markdown
 # agent-os Development Patterns
 
 > Auto-generated skill from repository analysis
@@ -9,18 +8,20 @@ This skill teaches you the core development patterns, coding conventions, and wo
 ## Coding Conventions
 
 ### File Naming
-- Use **camelCase** for file names.
+- Use **camelCase** for most source file names.
   - Example: `userAgent.ts`, `sessionManager.ts`
+- Note: documentation files use UPPERCASE (e.g., `README.md`, `CHANGELOG.md`) and React components use PascalCase (e.g., `GameStudio.tsx`).
 
 ### Import Style
-- Use **alias imports** for modules.
+- Use **bare-module imports** for dependencies (e.g., `react`, `framer-motion`) and **relative imports** for local modules.
   - Example:
     ```typescript
-    import { UserSession } from '@/sessions'
+    import { useState } from 'react'
+    import { JarvisBuilds } from './JarvisBuilds'
     ```
 
 ### Export Style
-- Use **named exports**.
+- Use **named exports** by default, but note that some components use **default exports** (e.g., `export default JarvisBuilds`).
   - Example:
     ```typescript
     export function startAgent() { ... }
@@ -53,7 +54,7 @@ This skill teaches you the core development patterns, coding conventions, and wo
     ```typescript
     export function newFeature() { ... }
     ```
-3. Add any necessary imports using alias style.
+3. Add any necessary imports using relative or bare-module style.
 4. Write corresponding tests in a file named `newFeature.test.ts`.
 5. Run `/run-tests` to ensure your module works as expected.
 
@@ -97,4 +98,3 @@ This skill teaches you the core development patterns, coding conventions, and wo
 | /run-tests    | Run the full Vitest test suite          |
 | /add-module   | Scaffold and add a new module           |
 | /write-test   | Create and run tests for new code       |
-```
