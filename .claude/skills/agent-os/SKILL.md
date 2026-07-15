@@ -13,7 +13,6 @@ This skill teaches you the core development patterns, coding conventions, and wo
 - Note: documentation files use UPPERCASE (e.g., `README.md`, `CHANGELOG.md`) and React components use PascalCase (e.g., `GameStudio.tsx`).
 
 ### Import Style
-<<<<<<< HEAD
 - Use **bare-module imports** for dependencies (e.g., `react`, `framer-motion`) and **relative imports** for local modules.
   - Example:
     ```typescript
