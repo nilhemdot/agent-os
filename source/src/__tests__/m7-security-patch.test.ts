@@ -145,11 +145,11 @@ describe("M7 Security Patch", () => {
         content: "test",
       });
 
-      // Direct function call allows any actor (route validation is separate)
-      // But we test the intended behavior: only "user" is valid from client
-      const result = promoteMemory(mem.id, "malicious-agent");
-      // This function doesn't validate actor, but route does
-      expect(result.promoted_by).toBe("malicious-agent");
+      // Function now validates actor defensively at store level
+      // Only "user" actor is allowed (defense-in-depth security fix)
+      expect(() => {
+        promoteMemory(mem.id, "malicious-agent");
+      }).toThrow("only 'user' actor allowed");
     });
 
     it("prevents self-promotion by malicious actor claim", () => {

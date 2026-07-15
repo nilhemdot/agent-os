@@ -115,10 +115,11 @@ describe("M7 Vault Gate", () => {
       expect(mem.trust).toBe("quarantined");
 
       // Promote it
-      const result = await vaultGate.promoteToVault(mem.id, "human-reviewer");
+      const result = await vaultGate.promoteToVault(mem.id, "user");
 
       expect(result.ok).toBe(true);
       expect(result.path).toBeDefined();
+      expect(result.data).toBeDefined();
       expect(mockAppendMemory).toHaveBeenCalledOnce();
 
       // Verify memory is now promoted
@@ -126,13 +127,67 @@ describe("M7 Vault Gate", () => {
       const found = promoted.find((m) => m.id === mem.id);
       expect(found).toBeDefined();
       expect(found?.trust).toBe("trusted");
-      expect(found?.promoted_by).toBe("human-reviewer");
+      expect(found?.promoted_by).toBe("user");
     });
 
     it("promotion fails gracefully on invalid id", async () => {
-      const result = await vaultGate.promoteToVault("invalid-id-xyz", "human");
+      const result = await vaultGate.promoteToVault("invalid-id-xyz", "user");
       expect(result.ok).toBe(false);
       expect(result.error).toBeDefined();
+    });
+
+    it("rolls back promotion when vault write fails", async () => {
+      // Mock vault writer to fail
+      const mockAppendMemory = vi
+        .spyOn(vaultWriter, "appendMemory")
+        .mockResolvedValue({ path: "", ok: false });
+
+      // Create agent-origin memory (quarantined)
+      const mem = memoryStore.addMemory({
+        tier: "archival",
+        origin: "agent",
+        content: "Sensitive agent data",
+      });
+
+      expect(mem.trust).toBe("quarantined");
+
+      // Attempt to promote (should fail and rollback)
+      const result = await vaultGate.promoteToVault(mem.id, "user");
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("Vault write failed");
+      expect(result.data).toBeUndefined();
+
+      // Verify record is still quarantined after rollback
+      const resident = memoryStore.getResidentContext();
+      const found = resident.find((m) => m.id === mem.id);
+      expect(found).toBeUndefined(); // Not in resident (should still be quarantined)
+
+      const search = memoryStore.searchMemory("Sensitive", { includeQuarantined: true });
+      const quarantined = search.quarantined.find((m) => m.id === mem.id);
+      expect(quarantined).toBeDefined();
+      expect(quarantined?.trust).toBe("quarantined");
+    });
+
+    it("returns data field with promoted record on success", async () => {
+      // Mock vault writer
+      const mockAppendMemory = vi
+        .spyOn(vaultWriter, "appendMemory")
+        .mockResolvedValue({ path: "Agentic OS/Memories/2026-07-13.md", ok: true });
+
+      const mem = memoryStore.addMemory({
+        tier: "archival",
+        origin: "agent",
+        content: "Data field test",
+      });
+
+      const result = await vaultGate.promoteToVault(mem.id, "user");
+
+      expect(result.ok).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data?.id).toBe(mem.id);
+      expect(result.data?.trust).toBe("trusted");
+      expect(result.data?.promoted_by).toBe("user");
     });
   });
 
@@ -172,17 +227,30 @@ describe("M7 Vault Gate", () => {
   });
 
   describe("promotion audit log", () => {
-    it("promotion creates audit entry", () => {
+    it("promotion creates exactly one audit entry", () => {
+      const { DatabaseSync } = require("node:sqlite");
+      const db = new DatabaseSync(process.env.AGENTOS_MEMORY_DB_PATH!);
+
       const mem = memoryStore.addMemory({
         tier: "archival",
         origin: "agent",
         content: "Test content",
       });
 
-      const promoted = memoryStore.promoteMemory(mem.id, "audit-test-actor");
+      // Clear any existing audit entries for this memory
+      db.prepare("DELETE FROM memory_audit WHERE memory_id = ?").run(mem.id);
 
-      expect(promoted.promoted_by).toBe("audit-test-actor");
+      // Promote once with valid "user" actor
+      const promoted = memoryStore.promoteMemory(mem.id, "user");
+
+      // Check exactly one audit entry exists
+      const auditRows = db.prepare("SELECT * FROM memory_audit WHERE memory_id = ? AND action = 'promote'").all(mem.id) as any[];
+      expect(auditRows).toHaveLength(1);
+      expect(auditRows[0].actor).toBe("user");
+      expect(promoted.promoted_by).toBe("user");
       expect(promoted.trust).toBe("trusted");
+
+      db.close();
     });
 
     it("demotion creates audit entry and reverts to quarantined", () => {
@@ -192,11 +260,37 @@ describe("M7 Vault Gate", () => {
         content: "Test content",
       });
 
-      memoryStore.promoteMemory(mem.id, "promoter");
-      const demoted = memoryStore.demoteMemory(mem.id, "demoter");
+      memoryStore.promoteMemory(mem.id, "user");
+      const demoted = memoryStore.demoteMemory(mem.id, "user");
 
       expect(demoted.trust).toBe("quarantined");
       expect(demoted.promoted_by).toBeNull();
+    });
+
+    it("promoteMemory throws error for non-user actor", () => {
+      const mem = memoryStore.addMemory({
+        tier: "archival",
+        origin: "agent",
+        content: "Test content",
+      });
+
+      expect(() => {
+        memoryStore.promoteMemory(mem.id, "agent");
+      }).toThrow("only 'user' actor allowed");
+    });
+
+    it("demoteMemory throws error for non-user actor", () => {
+      const mem = memoryStore.addMemory({
+        tier: "archival",
+        origin: "agent",
+        content: "Test content",
+      });
+
+      memoryStore.promoteMemory(mem.id, "user");
+
+      expect(() => {
+        memoryStore.demoteMemory(mem.id, "agent");
+      }).toThrow("only 'user' actor allowed");
     });
   });
 

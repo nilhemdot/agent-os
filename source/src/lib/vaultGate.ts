@@ -44,7 +44,7 @@ export async function promoteToVault(
   id: string,
   actor: string,
   content?: string
-): Promise<{ ok: boolean; path?: string; error?: string }> {
+): Promise<{ ok: boolean; path?: string; error?: string; data?: memoryStore.Memory }> {
   try {
     const mem = memoryStore.promoteMemory(id, actor);
 
@@ -55,8 +55,14 @@ export async function promoteToVault(
       text: content || mem.content,
     });
 
-    return { ok: res.ok, path: res.path };
+    if (!res.ok) {
+      memoryStore.demoteMemory(id, actor); // rollback to keep DB/vault consistent
+      return { ok: false, error: "Vault write failed; promotion rolled back" };
+    }
+
+    return { ok: true, path: res.path, data: mem };
   } catch (err) {
+    try { memoryStore.demoteMemory(id, actor); } catch { /* already unpromoted */ }
     return { ok: false, error: String(err) };
   }
 }

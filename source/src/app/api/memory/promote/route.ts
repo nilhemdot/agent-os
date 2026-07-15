@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { promoteMemory } from "@/lib/memoryStore";
 import { promoteToVault } from "@/lib/vaultGate";
 
 export const runtime = "nodejs";
@@ -39,14 +38,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Promote in memory store
-    const mem = promoteMemory(id, actor);
-
-    // Attempt to write to vault
+    // Promote with vault write and rollback on failure
     const vaultRes = await promoteToVault(id, actor);
 
+    if (!vaultRes.ok) {
+      return NextResponse.json(
+        { ok: false, error: vaultRes.error } as ApiResponse<never>,
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { ok: true, data: mem } as ApiResponse<typeof mem>,
+      { ok: true, data: vaultRes.data } as ApiResponse<typeof vaultRes.data>,
       { status: 200 }
     );
   } catch (err) {

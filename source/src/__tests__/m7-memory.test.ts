@@ -112,9 +112,9 @@ describe("M7 Memory Store", () => {
       expect(mem.trust).toBe("quarantined");
       expect(mem.promoted_by).toBeNull();
 
-      const promoted = promoteMemory(mem.id, "user1");
+      const promoted = promoteMemory(mem.id, "user");
       expect(promoted.trust).toBe("trusted");
-      expect(promoted.promoted_by).toBe("user1");
+      expect(promoted.promoted_by).toBe("user");
     });
 
     it("demotes trusted record back to quarantined", () => {
@@ -123,10 +123,10 @@ describe("M7 Memory Store", () => {
         origin: "agent",
         content: "test",
       });
-      const promoted = promoteMemory(mem.id, "user1");
+      const promoted = promoteMemory(mem.id, "user");
       expect(promoted.trust).toBe("trusted");
 
-      const demoted = demoteMemory(mem.id, "user1");
+      const demoted = demoteMemory(mem.id, "user");
       expect(demoted.trust).toBe("quarantined");
       expect(demoted.promoted_by).toBeNull();
     });
@@ -142,7 +142,7 @@ describe("M7 Memory Store", () => {
       const ids = context.map((m) => m.id);
       expect(ids).not.toContain(mem.id);
 
-      promoteMemory(mem.id, "user1");
+      promoteMemory(mem.id, "user");
       context = getResidentContext();
       const ids2 = context.map((m) => m.id);
       expect(ids2).toContain(mem.id);
@@ -178,7 +178,7 @@ describe("M7 Memory Store", () => {
       });
       expect(getResidentContext().map((m) => m.id)).not.toContain(web.id);
 
-      promoteMemory(web.id, "curator");
+      promoteMemory(web.id, "user");
       expect(getResidentContext().map((m) => m.id)).toContain(web.id);
     });
 
@@ -392,7 +392,7 @@ describe("M7 Memory Store", () => {
       expect(mem.origin).toBe("agent");
       // Cannot change origin via API (origin is immutable in schema)
       // Promotion only sets promoted_by, doesn't change origin
-      promoteMemory(mem.id, "curator");
+      promoteMemory(mem.id, "user");
       const promoted = getResidentContext().find((m) => m.id === mem.id);
       expect(promoted?.origin).toBe("agent");
     });

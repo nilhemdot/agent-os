@@ -137,9 +137,23 @@ export async function listCatalog(): Promise<CatalogEntry[]> {
     const m = await readManifest(row.name);
     if (!m) return row;
     const auth = extractAuth(m.auth);
+
+    // ponytail: protocol validation to prevent javascript: URL injection
+    let source: string | undefined;
+    if (typeof m.source === "string") {
+      try {
+        const parsed = new URL(m.source);
+        if (["http:", "https:"].includes(parsed.protocol)) {
+          source = m.source;
+        }
+      } catch {
+        // invalid URL, omit
+      }
+    }
+
     return {
       ...row,
-      source: typeof m.source === "string" ? m.source : undefined,
+      source,
       authType: auth.type,
       authProvider: auth.provider,
       transportType: m.transport?.type,

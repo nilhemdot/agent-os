@@ -227,6 +227,7 @@ export function getResidentContext(): Memory[] {
 
 export function promoteMemory(id: string, actor: string): Memory {
   if (!id || !actor) throw new Error("id and actor required");
+  if (actor !== "user") throw new Error("only 'user' actor allowed");
   const db = openDb();
   try {
     db.prepare("UPDATE memory SET trust = 'trusted', promoted_by = ? WHERE id = ?").run(
@@ -247,6 +248,7 @@ export function promoteMemory(id: string, actor: string): Memory {
 
 export function demoteMemory(id: string, actor: string): Memory {
   if (!id || !actor) throw new Error("id and actor required");
+  if (actor !== "user") throw new Error("only 'user' actor allowed");
   const db = openDb();
   try {
     db.prepare("UPDATE memory SET trust = 'quarantined', promoted_by = NULL WHERE id = ?").run(id);
