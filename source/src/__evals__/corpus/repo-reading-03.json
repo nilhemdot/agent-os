@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-03",
+  "category": "repo-reading",
+  "prompt": "List all npm dependencies and their versions from package.json.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-03-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

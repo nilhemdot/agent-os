@@ -1,0 +1,12 @@
+{
+  "id": "small-change-18",
+  "category": "small-change",
+  "prompt": "Create a new environment variable configuration.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-18-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

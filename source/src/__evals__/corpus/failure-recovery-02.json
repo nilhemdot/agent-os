@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-02",
+  "category": "failure-recovery",
+  "prompt": "Fix the failing unit test that checks for API response format.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-02-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

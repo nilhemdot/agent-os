@@ -137,7 +137,7 @@ export default function UltracodeView() {
       const decoder = new TextDecoder();
       let buf = "";
       let opened = !!resumeRunId; // already open when resuming
-      // eslint-disable-next-line no-constant-condition
+       
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;

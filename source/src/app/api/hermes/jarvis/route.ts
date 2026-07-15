@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 //   fast  -> direct OpenRouter completion, chat only (~2s)
 //   agent -> full Hermes CLI, runs tools (~28s)
 export async function POST(req: Request) {
-  let body: { prompt?: string; mode?: string; history?: JarvisMsg[] };
+  let body: { prompt?: string; mode?: string; history?: JarvisMsg[]; yolo?: boolean };
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, text: "", error: "bad json" }, { status: 400 }); }
 
@@ -23,6 +23,7 @@ export async function POST(req: Request) {
         .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }))
     : [];
 
-  const result = await jarvisReply(prompt.slice(0, 4000), mode, history);
+  // Approval bypass is opt-in: only when the client explicitly sends yolo: true.
+  const result = await jarvisReply(prompt.slice(0, 4000), mode, history, body.yolo === true);
   return NextResponse.json(result, { status: result.ok ? 200 : 502 });
 }

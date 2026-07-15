@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-05",
+  "category": "repo-reading",
+  "prompt": "Identify all API route files and their handlers.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-05-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-05",
+  "category": "failure-recovery",
+  "prompt": "Debug the failing integration test and restore the database transaction.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-05-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-04",
+  "category": "failure-recovery",
+  "prompt": "Fix the runtime error when accessing an undefined property.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-04-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

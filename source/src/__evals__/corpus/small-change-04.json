@@ -1,0 +1,12 @@
+{
+  "id": "small-change-04",
+  "category": "small-change",
+  "prompt": "Create a new React hook for managing form state.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/small-change-04-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

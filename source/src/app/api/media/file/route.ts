@@ -1,4 +1,4 @@
-import { stat, open } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { existsSync, createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";

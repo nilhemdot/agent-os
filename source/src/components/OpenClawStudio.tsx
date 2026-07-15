@@ -6,7 +6,6 @@ import remarkGfm from "remark-gfm";
 import {
   ImageIcon, Film, Mic, Search, Sparkles, Loader2, Send, ExternalLink,
   Download, Play, Radio, Wand2, Clock, History, MessageCircle, Square,
-  MicOff,
 } from "lucide-react";
 
 // OpenClaw Studio — Grok 4.3's creative cockpit.
@@ -231,7 +230,6 @@ function StudioImage() {
       <PreviewCard title={current ? "Latest image" : "Preview"} accent={ACCENT}>
         {current ? (
           <div className="flex-1 min-h-0 flex flex-col">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={current.url} alt="generated" className="flex-1 min-h-0 w-full object-contain bg-black/40 rounded-md max-h-[440px]" />
             {current.prompt && (
               <div className="mt-2 p-2 rounded-md text-[11.5px] text-[var(--cream-soft)] leading-relaxed"
@@ -1390,7 +1388,6 @@ function TalkHistoryList({ items, activeId, onLoad, onDelete, disabled }: {
         <div className="space-y-1.5">
           {visible.map((rec) => {
             const isActive = rec.id === activeId;
-            const lastUserTurn = [...rec.turns].reverse().find((t) => t.role === "you");
             const lastGrokTurn = [...rec.turns].reverse().find((t) => t.role === "grok");
             return (
               <div key={rec.id}
@@ -1430,35 +1427,6 @@ function TalkHistoryList({ items, activeId, onLoad, onDelete, disabled }: {
       )}
     </div>
   );
-}
-
-
-// Render Grok's `[[N]](url)` inline citation markers as small numbered badges.
-// Leaves the rest of the markdown-ish text as-is (we display it whitespace-pre-wrap).
-function renderInlineCitations(text: string, citations: string[]): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  const re = /\[\[(\d+)\]\]\(([^)]+)\)/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const n = match[1];
-    const url = match[2];
-    parts.push(
-      <a key={`cite-${key++}`} href={url} target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] mono align-middle mx-0.5 hover:scale-110 transition"
-        style={{ background: `${ACCENT}28`, color: ACCENT, textDecoration: "none" }}
-        title={url}>{n}</a>
-    );
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
-  // Suppress unused-var warning when citations list isn't referenced inline (we still pass it in case future renderers want to look up by index)
-  void citations;
-  return parts;
 }
 
 // ─── Shared bits ────────────────────────────────────────────────────────────
@@ -1546,7 +1514,6 @@ function HistoryGrid({ items, onClick, title }: { items: StudioItem[]; onClick: 
               title={it.meta?.prompt ?? it.name}>
               <div className="aspect-square overflow-hidden bg-black/40">
                 {it.kind === "image" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={it.url} alt={it.meta?.prompt ?? it.name} className="w-full h-full object-cover group-hover:scale-110 transition" />
                 ) : it.kind === "video" ? (
                   <div className="w-full h-full grid place-items-center relative">

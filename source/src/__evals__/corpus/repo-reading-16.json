@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-16",
+  "category": "repo-reading",
+  "prompt": "Find and read authentication configuration files.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-16-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

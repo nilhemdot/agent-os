@@ -1,0 +1,12 @@
+{
+  "id": "small-change-05",
+  "category": "small-change",
+  "prompt": "Add a missing import statement that appears to be causing a runtime error.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-05-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

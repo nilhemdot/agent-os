@@ -1,0 +1,12 @@
+{
+  "id": "small-change-09",
+  "category": "small-change",
+  "prompt": "Add basic input validation to a form field.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-09-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

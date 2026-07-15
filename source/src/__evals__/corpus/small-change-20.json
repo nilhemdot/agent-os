@@ -1,0 +1,12 @@
+{
+  "id": "small-change-20",
+  "category": "small-change",
+  "prompt": "Update a test to cover a newly added code path.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/small-change-20-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

@@ -49,7 +49,7 @@ export default function HermesPhone() {
   async function goLive() {
     setErr(null); setPhase("working");
     try {
-      let st = sRef.current ?? (await fetchStatus());
+      const st = sRef.current ?? (await fetchStatus());
       if (!st) throw new Error("Can't reach Agent OS");
       if (!st.apiServer.keySet || !st.elevenKeySet) throw new Error("Missing keys — set ELEVENLABS_API_KEY + API_SERVER_KEY in Hermes → Manage → API Keys.");
 

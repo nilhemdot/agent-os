@@ -1,0 +1,12 @@
+{
+  "id": "small-change-15",
+  "category": "small-change",
+  "prompt": "Add a loading state to an existing component.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-15-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

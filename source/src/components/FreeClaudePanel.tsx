@@ -577,7 +577,6 @@ export default function FreeClaudePanel() {
                         })()}
                         {open.kind === "image" && (
                           <a href={rawUrl(open.path)} target="_blank" rel="noopener noreferrer" className="block bg-[rgba(0,0,0,0.6)]">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={rawUrl(open.path)} alt={open.path} className="w-full max-h-[540px] object-contain" />
                           </a>
                         )}

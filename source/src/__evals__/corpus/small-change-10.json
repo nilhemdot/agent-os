@@ -1,0 +1,12 @@
+{
+  "id": "small-change-10",
+  "category": "small-change",
+  "prompt": "Create a new CSS class for a commonly used styling pattern.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/small-change-10-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

@@ -109,8 +109,15 @@ export class CircuitBreaker {
   isStalled(now = Date.now()) { return now - this.lastOutputAt > this.policy.stallMs; }
 }
 
+// Subscription users who run `claude -p` with ANTHROPIC_API_KEY set silently get
+// billed per-token instead of using their flat-rate plan — the single most expensive
+// footgun in the product. We fail SAFE: refuse by default, and only allow it when the
+// operator has explicitly opted into API-key billing. Heuristic for "on a subscription":
+// the absence of an explicit AGENTOS_ALLOW_API_KEY=1 override (policy.anthropicPlan==="api"
+// is honored as an equivalent opt-in for callers that carry policy instead of env).
 export function billingRefusal(agent: string, args: readonly string[], env: NodeJS.ProcessEnv, policy: Partial<BreakerPolicy>): string | null {
-  const plan = policy.anthropicPlan || (env.AGENTOS_ANTHROPIC_PLAN === "subscription" ? "subscription" : undefined);
-  return agent === "claude" && args.includes("-p") && Boolean(env.ANTHROPIC_API_KEY) && plan === "subscription"
-    ? "billing_guard: claude -p with ANTHROPIC_API_KEY bypasses the subscription plan" : null;
+  if (agent !== "claude" || !(args.includes("-p") || args.includes("--print")) || !env.ANTHROPIC_API_KEY) return null;
+  const allowed = env.AGENTOS_ALLOW_API_KEY === "1" || policy.anthropicPlan === "api";
+  return allowed ? null
+    : "billing_guard: claude -p with ANTHROPIC_API_KEY set bills the API instead of your subscription plan — set AGENTOS_ALLOW_API_KEY=1 to allow per-token billing";
 }

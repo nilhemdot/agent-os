@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-10",
+  "category": "repo-reading",
+  "prompt": "Find all database or data persistence configurations.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-10-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

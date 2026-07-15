@@ -1,0 +1,12 @@
+{
+  "id": "small-change-07",
+  "category": "small-change",
+  "prompt": "Add JSDoc comments to document a complex algorithm.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-07-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start -H 127.0.0.1",
     "worker": "tsx src/worker.ts",
+    "x": "node scripts/x.mjs",
+    "eval": "tsx src/scripts/eval.mjs",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -29,11 +32,15 @@
     "three-spritetext": "^1.10.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.184.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.10",
+    "globals": "^17.7.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",
     "typescript": "^5",

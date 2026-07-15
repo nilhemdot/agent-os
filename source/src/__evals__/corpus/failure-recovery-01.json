@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-01",
+  "category": "failure-recovery",
+  "prompt": "The build failed with a module resolution error; diagnose and fix.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-01-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

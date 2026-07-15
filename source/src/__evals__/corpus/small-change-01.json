@@ -1,0 +1,12 @@
+{
+  "id": "small-change-01",
+  "category": "small-change",
+  "prompt": "Add a new utility function to format dates consistently.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-01-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

@@ -81,7 +81,6 @@ function BuildsGallery() {
               <a href={build.liveUrl ?? "#"} target="_blank" rel="noopener noreferrer"
                 className="relative block aspect-[16/10] overflow-hidden" style={{ background: "#05080d" }}>
                 {build.previewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={build.previewUrl} alt={build.title} className="w-full h-full object-cover object-top transition duration-500 group-hover:scale-[1.04]" />
                 ) : (
                   <div className="absolute inset-0 grid place-items-center" style={{ color: "var(--fg-dim)" }}><Hammer size={22} /></div>

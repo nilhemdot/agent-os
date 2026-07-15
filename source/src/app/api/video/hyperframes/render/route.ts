@@ -5,7 +5,6 @@ import { createWriteStream } from "node:fs";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { config } from "@/lib/config";
 import {
   createRenderJob, updateRenderJob, nextRenderOutputPath, VIDEO_ROOT,
 } from "@/lib/videoProjects";

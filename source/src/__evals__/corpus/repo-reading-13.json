@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-13",
+  "category": "repo-reading",
+  "prompt": "Find all external API integrations in the codebase.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-13-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-10",
+  "category": "failure-recovery",
+  "prompt": "Fix the async operation timeout in the background worker.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-10-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

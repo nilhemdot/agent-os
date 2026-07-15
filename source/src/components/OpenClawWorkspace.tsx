@@ -349,7 +349,6 @@ export default function OpenClawWorkspace() {
             {open.kind === "image" && (
               <a href={rawUrl(open.path)} target="_blank" rel="noopener noreferrer"
                  className="flex-1 min-h-0 grid place-items-center bg-[rgba(0,0,0,0.6)] overflow-auto">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={rawUrl(open.path)} alt={open.path} className="max-w-full max-h-full object-contain" />
               </a>
             )}

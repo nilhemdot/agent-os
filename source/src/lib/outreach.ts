@@ -214,7 +214,6 @@ function importLegacy(state: OutreachState): OutreachState {
     }
 
     const leadIds: string[] = [];
-    let bounceCount = 0;
     let breaker: CircuitBreaker = { state: "closed" };
 
     for (const e of raw.emails || []) {
@@ -231,7 +230,6 @@ function importLegacy(state: OutreachState): OutreachState {
       const lid = newId();
       leadIds.push(lid);
       const bounced = e.status === "bounced";
-      if (bounced) bounceCount++;
       state.leads.push({
         id: lid,
         domain: e.domain,

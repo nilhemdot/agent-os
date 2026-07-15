@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-12",
+  "category": "repo-reading",
+  "prompt": "Locate and read the TypeScript strict mode configuration.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-12-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

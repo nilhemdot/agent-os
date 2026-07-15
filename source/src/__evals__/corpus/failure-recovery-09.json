@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-09",
+  "category": "failure-recovery",
+  "prompt": "Restore the codebase state after a partial deployment failure.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-09-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

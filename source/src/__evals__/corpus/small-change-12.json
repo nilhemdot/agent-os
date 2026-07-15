@@ -1,0 +1,12 @@
+{
+  "id": "small-change-12",
+  "category": "small-change",
+  "prompt": "Update a constant that has hardcoded values.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/small-change-12-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

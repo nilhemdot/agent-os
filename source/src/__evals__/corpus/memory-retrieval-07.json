@@ -1,0 +1,12 @@
+{
+  "id": "memory-retrieval-07",
+  "category": "memory-retrieval",
+  "prompt": "Retrieve previous decisions about error handling patterns.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/memory-retrieval-07-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.3
+  }
+}

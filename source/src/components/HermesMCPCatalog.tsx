@@ -445,7 +445,7 @@ function InstallModal({ name, onClose, onComplete }: { name: string; onClose: ()
     const reader = r.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -741,7 +741,6 @@ function AddCustomModal({ existingNames, onClose, onComplete }: { existingNames:
   const [argsText, setArgsText] = useState(""); // space-separated; we split on submit
   const [url, setUrl] = useState("");
   const [auth, setAuth] = useState<"none" | "oauth" | "header">("none");
-  const [headerKey, setHeaderKey] = useState("Authorization");
   const [headerValue, setHeaderValue] = useState("");
   const [envVarRows, setEnvVarRows] = useState<Array<{ name: string; value: string; secret: boolean; prompt?: string }>>([]);
   const [submitting, setSubmitting] = useState(false);

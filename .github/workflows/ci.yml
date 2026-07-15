@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, m0-security-patch]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    # Windows non-blocking: WSL2 is the supported Windows path (Plan v3 §M8); native CRLF/worktree/srt differences tracked in backlog M8-6
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: ['22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: source/package-lock.json
+
+      - name: Install dependencies
+        working-directory: source
+        run: npm ci
+
+      - name: Type check
+        working-directory: source
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: source
+        run: npm run lint
+        continue-on-error: true
+        # non-blocking: D-series lint-debt burn-down in progress (M8.18); typecheck/test/eval are the hard gates
+
+      - name: Run tests (includes adversarial suite m8-*.test.ts)
+        working-directory: source
+        run: npm run test
+
+      - name: Run eval
+        working-directory: source
+        run: npm run eval

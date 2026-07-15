@@ -60,11 +60,8 @@ export default function RadarView() {
   const [oracleImg, setOracleImg] = useState<string | null>(null);
   const [view, setView] = useState<"signals" | "published">("signals");
   const [pubHistory, setPubHistory] = useState<{ at: string; headline: string; status: string; indexed: boolean; results: { site: string; url: string; editUrl: string; title: string }[] }[]>([]);
-  const [mounted, setMounted] = useState(false); // gate the float-coord SVG stage to client only (no hydration mismatch)
   const cardsRef = useRef<HTMLDivElement>(null);
   const scannedAtRef = useRef<string | null>(null);
-
-  useEffect(() => { setMounted(true); }, []);
 
   const signals = viewDay ? (history.find((h) => h.day === viewDay)?.signals || []) : live;
 
@@ -142,8 +139,8 @@ export default function RadarView() {
       const d = await r.json();
       if (!d.ok) { setErr(d.error || "Couldn't start the sweep."); setSweeping(false); return; }
       pollUntilDone(); // fire-and-forget: runs server-side; the poll swaps cards in when done
-    } catch (e) {
-      setErr(String((e as Error)?.message || e)); setSweeping(false);
+    } catch (_e) {
+      setErr(String((_e as Error)?.message || _e)); setSweeping(false);
     }
   }, [sweeping, pollUntilDone]);
 
@@ -155,7 +152,7 @@ export default function RadarView() {
         body: JSON.stringify({ headline: s.headline, why_now: s.why_now, angle: s.angle, format: s.format }) });
       const d = await r.json();
       setDrafts((m) => ({ ...m, [key]: d.ok ? d.draft : `⚠ ${d.error || "Couldn't draft this one."}` }));
-    } catch (e) { setDrafts((m) => ({ ...m, [key]: `⚠ ${String((e as Error)?.message || e)}` })); }
+    } catch (_e) { setDrafts((m) => ({ ...m, [key]: `⚠ ${String((_e as Error)?.message || _e)}` })); }
     finally { setDrafting(null); }
   }, [drafting]);
 
@@ -180,8 +177,8 @@ export default function RadarView() {
         } catch { setTimeout(poll, 5000); }
       };
       setTimeout(poll, 4000);
-    } catch (e) {
-      setPubResult((m) => ({ ...m, [key]: { error: String((e as Error)?.message || e) } })); setPublishing(null);
+    } catch (_e) {
+      setPubResult((m) => ({ ...m, [key]: { error: String((_e as Error)?.message || _e) } })); setPublishing(null);
     }
   }, [publishing, loadPublished]);
 

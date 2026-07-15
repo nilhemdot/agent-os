@@ -1066,7 +1066,7 @@ export default function JarvisView() {
   }, [wall]);
 
   const phaseLabel = building ? "BUILDING" : busy ? (mode === "agent" ? "ACTING" : "THINKING") : listening || armedRef.current ? "LISTENING" : phaseState === "speaking" ? "SPEAKING" : "ONLINE";
-  const coreTap = () => { if (busy || realtime) return; listening ? stopListening() : startListening(); };
+  const coreTap = () => { if (busy || realtime) return; if (listening) stopListening(); else startListening(); };
 
   // shared controls row
   const controls = (

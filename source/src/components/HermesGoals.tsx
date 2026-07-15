@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
-  Target, Plus, Square, Trash2, Loader2, CheckCircle2, AlertCircle, Clock,
+  Target, Square, Trash2, Loader2, CheckCircle2, AlertCircle, Clock,
   Send, Pause, Radio, Wand2, FileText, FolderTree, ScrollText, ExternalLink,
   Download, Eye, X as XIcon, Image as ImageIcon,
 } from "lucide-react";
@@ -406,7 +406,6 @@ export default function HermesGoals() {
                                 );
                               })()}
                               {openFile.kind === "image" && (
-                                /* eslint-disable-next-line @next/next/no-img-element */
                                 <img src={previewUrl(openFile)} alt={openFile.name} className="flex-1 min-h-0 w-full object-contain bg-black/40" />
                               )}
                               {openFile.kind === "video" && (

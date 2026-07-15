@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-03",
+  "category": "failure-recovery",
+  "prompt": "Resolve the TypeScript compilation error in the type definitions.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-03-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

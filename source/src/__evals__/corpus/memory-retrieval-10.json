@@ -1,0 +1,12 @@
+{
+  "id": "memory-retrieval-10",
+  "category": "memory-retrieval",
+  "prompt": "Retrieve the decision context for the component architecture.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/memory-retrieval-10-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.3
+  }
+}

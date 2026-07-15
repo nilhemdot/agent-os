@@ -97,7 +97,7 @@ export async function recoverOrphans(): Promise<{ recovered: number; existing: n
     let prompt = "(recovered — original prompt unavailable)";
     let status: GoalStatus = "stopped";
     let exitCode: number | null | undefined = undefined;
-    let startedAt: number | undefined = st.ctimeMs;
+    const startedAt: number | undefined = st.ctimeMs;
     let finishedAt: number | undefined = undefined;
     if (existsSync(logFile)) {
       try {

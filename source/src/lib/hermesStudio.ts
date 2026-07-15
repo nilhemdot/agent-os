@@ -6,7 +6,6 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { hermesHome } from "@/lib/config";
 import path from "node:path";
-import os from "node:os";
 
 export const HERMES_ROOT = path.join(hermesHome());
 export const MINIMAX_BASE = "https://api.minimax.io/v1";

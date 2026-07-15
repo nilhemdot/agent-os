@@ -1,0 +1,12 @@
+{
+  "id": "small-change-16",
+  "category": "small-change",
+  "prompt": "Fix a typo in variable names across related files.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-16-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

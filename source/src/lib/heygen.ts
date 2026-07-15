@@ -16,6 +16,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h — lists basically never chang
 export function readHeyGenKey(): string | null {
   if (!existsSync(KEY_FILE)) return null;
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- sync read of env file at init
     const txt = require("node:fs").readFileSync(KEY_FILE, "utf8");
     const m = /^HEYGEN_API_KEY=(.+)$/m.exec(txt);
     return m ? m[1].trim() : null;

@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-09",
+  "category": "repo-reading",
+  "prompt": "Identify the test file structure and naming conventions.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-09-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

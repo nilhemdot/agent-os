@@ -1,0 +1,12 @@
+{
+  "id": "small-change-19",
+  "category": "small-change",
+  "prompt": "Add a debounce mechanism to a frequently-called function.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-19-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}
