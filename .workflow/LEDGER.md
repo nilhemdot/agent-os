@@ -24,7 +24,7 @@ Prereqs: M0–M7 committed (latest: 95d95f5 M7 memory with provenance).
 - [ ] M8.15. Exit gate: adversarial suite green in CI; fresh install on 3 OSes → verified diff on real issue < 15 min
 
 ## Constraints (standing)
-- [ ] M8.16. node:sqlite only; no new deps without justification; Next.js 16 non-standard (read node_modules/next/dist/docs first); localhost-only; npm from source/; every adversarial item is a regression test, not a checklist item
+- [x] M8.16. node:sqlite only; no new deps without justification; Next.js 16 non-standard (read node_modules/next/dist/docs first); localhost-only; npm from source/; every adversarial item is a regression test, not a checklist item
 - [x] M8.17. (discovered post-commit) Background security review flagged 6 issues in M7 commit 95d95f5, 3 named in promote route: authentication-bypass, audit-log-integrity, state-inconsistency (+3 unnamed elsewhere in commit surface). Validate with opus, apply minimal fixes, regression tests, suite green.
 
 ## Decisions (M8 Phase 2, user-approved 2026-07-15)

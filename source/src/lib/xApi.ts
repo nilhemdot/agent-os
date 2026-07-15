@@ -13,7 +13,7 @@ export interface PostResponse {
   url: string;
 }
 
-export interface PostThreadResponse extends PostResponse {}
+export type PostThreadResponse = PostResponse;
 
 export interface UserResponse {
   id: string;
@@ -47,23 +47,11 @@ export interface MentionsResponse {
 }
 
 /**
- * Resolve X API credential from broker, fallback to env. Never logs values.
- * @param brokerId e.g. "x_consumer_key"
+ * Resolve X API credential from environment. Never logs values.
  * @param envKey e.g. "X_CONSUMER_KEY"
  * @returns credential value or null
  */
-function resolveCred(brokerId: string, envKey: string): string | null {
-  try {
-    const { resolve } = require("./credentialBroker");
-    try {
-      return resolve(brokerId) || null;
-    } catch {
-      // Broker miss, fall back to env
-    }
-  } catch {
-    // credentialBroker import fail
-  }
-
+function resolveCred(envKey: string): string | null {
   return process.env[envKey] || null;
 }
 
@@ -77,10 +65,10 @@ function getSigningCreds(): {
   tokenKey: string;
   tokenSecret: string;
 } | null {
-  const consumerKey = resolveCred("x_consumer_key", "X_CONSUMER_KEY");
-  const consumerSecret = resolveCred("x_consumer_secret", "X_CONSUMER_SECRET");
-  const tokenKey = resolveCred("x_access_token", "X_ACCESS_TOKEN");
-  const tokenSecret = resolveCred("x_access_token_secret", "X_ACCESS_TOKEN_SECRET");
+  const consumerKey = resolveCred("X_CONSUMER_KEY");
+  const consumerSecret = resolveCred("X_CONSUMER_SECRET");
+  const tokenKey = resolveCred("X_ACCESS_TOKEN");
+  const tokenSecret = resolveCred("X_ACCESS_TOKEN_SECRET");
 
   if (!consumerKey || !consumerSecret || !tokenKey || !tokenSecret) {
     return null;
@@ -94,7 +82,7 @@ function getSigningCreds(): {
  * @returns bearer token or null
  */
 function getBearerToken(): string | null {
-  return resolveCred("x_bearer_token", "X_BEARER_TOKEN");
+  return resolveCred("X_BEARER_TOKEN");
 }
 
 /**
