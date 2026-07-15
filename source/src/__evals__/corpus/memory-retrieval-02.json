@@ -1,0 +1,12 @@
+{
+  "id": "memory-retrieval-02",
+  "category": "memory-retrieval",
+  "prompt": "Search memory for previous decisions about API rate limiting.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/memory-retrieval-02-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.3
+  }
+}

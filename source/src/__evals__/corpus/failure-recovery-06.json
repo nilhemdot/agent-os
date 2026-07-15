@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-06",
+  "category": "failure-recovery",
+  "prompt": "Fix the linting error about unused imports and variables.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-06-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

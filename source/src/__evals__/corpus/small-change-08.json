@@ -1,0 +1,12 @@
+{
+  "id": "small-change-08",
+  "category": "small-change",
+  "prompt": "Update a component to handle a new prop parameter.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-08-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

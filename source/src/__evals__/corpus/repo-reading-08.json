@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-08",
+  "category": "repo-reading",
+  "prompt": "List all React component files in the source directory.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-08-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "dep-upgrade-04",
+  "category": "dep-upgrade",
+  "prompt": "Update the testing library to resolve security vulnerabilities.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/dep-upgrade-04-result.json",
+  "expect": {
+    "verificationPass": true,
+    "maxCostUsd": 1.2
+  }
+}

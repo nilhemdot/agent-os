@@ -1,0 +1,12 @@
+{
+  "id": "memory-retrieval-08",
+  "category": "memory-retrieval",
+  "prompt": "Search memory for the caching strategy decisions.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/memory-retrieval-08-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.3
+  }
+}

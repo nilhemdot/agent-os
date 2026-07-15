@@ -1,0 +1,12 @@
+{
+  "id": "memory-retrieval-03",
+  "category": "memory-retrieval",
+  "prompt": "Look up the context of the M6 checkpoint implementation.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/memory-retrieval-03-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.3
+  }
+}

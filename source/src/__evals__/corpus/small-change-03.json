@@ -1,0 +1,12 @@
+{
+  "id": "small-change-03",
+  "category": "small-change",
+  "prompt": "Add TypeScript type annotations to an untyped utility function.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-03-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

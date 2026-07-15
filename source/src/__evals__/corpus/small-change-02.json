@@ -1,0 +1,12 @@
+{
+  "id": "small-change-02",
+  "category": "small-change",
+  "prompt": "Update the error message in the login handler to be more user-friendly.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/small-change-02-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "memory-retrieval-04",
+  "category": "memory-retrieval",
+  "prompt": "Retrieve the rationale for choosing Turbopack as the bundler.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/memory-retrieval-04-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.3
+  }
+}

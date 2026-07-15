@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-04",
+  "category": "repo-reading",
+  "prompt": "Find the entry point for the Next.js application.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-04-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "memory-retrieval-09",
+  "category": "memory-retrieval",
+  "prompt": "Look up the context of database technology choices.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/memory-retrieval-09-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.3
+  }
+}

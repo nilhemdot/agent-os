@@ -1,0 +1,12 @@
+{
+  "id": "small-change-14",
+  "category": "small-change",
+  "prompt": "Create a small utility for common string transformations.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/small-change-14-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

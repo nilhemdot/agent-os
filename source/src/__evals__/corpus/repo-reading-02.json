@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-02",
+  "category": "repo-reading",
+  "prompt": "Find and summarize all TypeScript configuration files in the project.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-02-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

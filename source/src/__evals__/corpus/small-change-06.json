@@ -1,0 +1,12 @@
+{
+  "id": "small-change-06",
+  "category": "small-change",
+  "prompt": "Refactor a large function into smaller, more focused functions.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/small-change-06-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.8
+  }
+}

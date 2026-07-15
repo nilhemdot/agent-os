@@ -1,0 +1,12 @@
+{
+  "id": "failure-recovery-07",
+  "category": "failure-recovery",
+  "prompt": "Resolve the circular dependency detected in the module graph.",
+  "stochastic": true,
+  "fixture": "src/__evals__/corpus/failure-recovery-07-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 1.5
+  }
+}

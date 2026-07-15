@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-07",
+  "category": "repo-reading",
+  "prompt": "Find all environment variable definitions.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-07-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

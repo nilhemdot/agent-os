@@ -14,9 +14,9 @@ Prereqs: M0–M7 committed (latest: 95d95f5 M7 memory with provenance).
 
 ## Phase 2 — Eval harness + corpus
 - [x] M8.9. Eval runner: executes corpus cases, records per-run metrics to node:sqlite (success, verification pass rate, human corrections, cost-of-pass, time-to-approved-result, unsafe-action-proposal rate, false-positive block rate, restart-recovery rate, context tokens) — **hybrid fixture/live, fixture-complete**
-- [ ] M8.10. Corpus: 20 repo-reading, 20 small code changes, 10 dependency upgrades, 10 failure-recovery, 20 adversarial/policy, 10 memory-retrieval (90 cases)
+- [x] M8.10. Corpus: 20 repo-reading, 20 small code changes, 10 dependency upgrades, 10 failure-recovery, 20 adversarial/policy, 10 memory-retrieval (90 cases)
 - [x] M8.11. Stochastic cases run ≥3×; variance reported — **stddev + repeat implemented**
-- [ ] M8.12. Eval dashboard page: stable baseline visible
+- [x] M8.12. Eval dashboard page: stable baseline visible — **route + page complete**
 
 ## Phase 3 — CI + distribution
 - [ ] M8.13. Cross-platform CI matrix (ubuntu/macos/windows; WSL2 acceptable Windows answer)

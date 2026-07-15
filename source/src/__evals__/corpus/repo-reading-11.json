@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-11",
+  "category": "repo-reading",
+  "prompt": "Summarize the build process from package.json scripts.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-11-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

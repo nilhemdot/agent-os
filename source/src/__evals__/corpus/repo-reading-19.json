@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-19",
+  "category": "repo-reading",
+  "prompt": "Find all Docker or container configurations.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-19-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

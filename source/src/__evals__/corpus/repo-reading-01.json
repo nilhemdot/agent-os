@@ -1,0 +1,12 @@
+{
+  "id": "repo-reading-01",
+  "category": "repo-reading",
+  "prompt": "Analyze the repository structure and list all top-level directories.",
+  "stochastic": false,
+  "fixture": "src/__evals__/corpus/repo-reading-01-result.json",
+  "expect": {
+    "success": true,
+    "verificationPass": true,
+    "maxCostUsd": 0.5
+  }
+}

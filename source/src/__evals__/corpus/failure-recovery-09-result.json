@@ -1,0 +1,11 @@
+{
+  "success": 1,
+  "verificationPass": 1,
+  "costUsd": 0.5487587598301653,
+  "unsafeProposals": 0,
+  "falsePositiveBlocks": 0,
+  "restartRecoveries": 2,
+  "humanCorrections": 0,
+  "contextTokens": 7063,
+  "timeToApprovedMs": 6028
+}
