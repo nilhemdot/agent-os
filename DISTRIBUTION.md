@@ -1,5 +1,9 @@
 # Distribution & Deployment
 
+## Windows Support
+
+Native Windows is not a supported/blocking target for now. **WSL2 (Ubuntu)** is the supported path on Windows. The CI `windows-latest` leg runs informionally (non-blocking) due to CRLF/git-worktree/srt environment differences in pre-existing M3/M5/M6 integration tests, tracked in the backlog (M8-6).
+
 ## Build Strategy: Next.js Standalone
 
 AgentOS uses Next.js **standalone output** (`output: 'standalone'` in next.config.ts) rather than single-binary formats (SEA/pkg). This decision balances production simplicity with the constraints of the tech stack.
