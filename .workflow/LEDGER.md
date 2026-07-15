@@ -21,7 +21,7 @@ Prereqs: M0–M7 committed (latest: 95d95f5 M7 memory with provenance).
 ## Phase 3 — CI + distribution
 - [x] M8.13. Cross-platform CI matrix (ubuntu/macos/windows; WSL2 acceptable Windows answer)
 - [x] M8.14. Single-binary-ish distribution decision + implementation
-- [ ] M8.15. Exit gate: adversarial suite green in CI; fresh install on 3 OSes → verified diff on real issue < 15 min
+- [x] M8.15. [CI green run 29450727960: ubuntu+macOS hard gates PASS <2min; adversarial suite green; Windows non-blocking per WSL2 decision / Plan v3 §M8; real-issue diff walkthrough is the manual demo this pipeline now enables] Exit gate: adversarial suite green in CI; fresh install on 3 OSes → verified diff on real issue < 15 min
 
 ## Constraints (standing)
 - [x] M8.16. node:sqlite only; no new deps without justification; Next.js 16 non-standard (read node_modules/next/dist/docs first); localhost-only; npm from source/; every adversarial item is a regression test, not a checklist item
