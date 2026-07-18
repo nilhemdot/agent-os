@@ -84,4 +84,18 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
     },
   },
+  // R1.4 security invariant (§4.2): app/features must not spawn subprocesses
+  // directly — all launches route through the runner chokepoint.
+  // User-authorized edit 2026-07-18; see .workflow/LEDGER.md R1.4.
+  {
+    files: ['src/app/**/*.{js,jsx,ts,tsx}', 'src/features/**/*.{js,jsx,ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          { name: 'child_process', message: 'Route subprocess launches through src/lib/runner.ts (R1.4).' },
+          { name: 'node:child_process', message: 'Route subprocess launches through src/lib/runner.ts (R1.4).' },
+        ],
+      }],
+    },
+  },
 ];

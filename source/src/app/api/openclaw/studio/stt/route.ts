@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { run } from "@/lib/runner";
-import { spawn } from "node:child_process";
+import { run, spawnSubprocess } from "@/lib/runner";
 import path from "node:path";
 import os from "node:os";
 import { mkdir, writeFile, unlink, stat } from "node:fs/promises";
@@ -25,7 +24,7 @@ const FFMPEG = existsSync("/opt/homebrew/bin/ffmpeg") ? "/opt/homebrew/bin/ffmpe
 async function toMp3(inputPath: string, outputPath: string): Promise<{ ok: boolean; stderr: string }> {
   return new Promise((resolve) => {
     const args = ["-i", inputPath, "-ar", "16000", "-ac", "1", "-c:a", "libmp3lame", "-b:a", "64k", "-y", outputPath];
-    const child = spawn(FFMPEG, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnSubprocess(FFMPEG, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stderr = "";
     child.stderr.on("data", (b: Buffer) => { stderr += b.toString(); });
     child.on("error", (e) => resolve({ ok: false, stderr: String(e) }));

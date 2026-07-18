@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
+import { spawnSubprocess } from "@/lib/runner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ function runOpen(target: string): Promise<boolean> {
       args = ["-a", t];
     }
     try {
-      const c = spawn("open", args, { stdio: "ignore" });
+      const c = spawnSubprocess("open", args, { stdio: "ignore" });
       c.on("close", (code) => resolve(code === 0));
       c.on("error", () => resolve(false));
     } catch { resolve(false); }

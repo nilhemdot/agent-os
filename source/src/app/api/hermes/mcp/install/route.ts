@@ -13,8 +13,7 @@
 //
 // The UI displays these line-by-line in the install modal's live log.
 
-import { spawn } from "node:child_process";
-import { agentEnv } from "@/lib/runner";
+import { spawnSubprocess } from "@/lib/runner";
 import { config, hermesHome } from "@/lib/config";
 import { upsertEnv } from "@/lib/hermesMcp";
 
@@ -62,18 +61,17 @@ export async function POST(req: Request) {
       // pager / spinner. Pre-set credentials in env so the CLI sees them and
       // can skip its own prompts where supported.
       emit({ type: "step", label: `Running: hermes mcp install ${name}` });
-      const childEnv = agentEnv({
-        ...envVars,
-        NO_COLOR: "1",
-        FORCE_COLOR: "0",
-        TERM: "dumb",
-        // HERMES_ACCEPT_HOOKS=1 auto-approves any shell hook prompts; without
-        // it the install can hang waiting on a TTY confirm we can't satisfy.
-        HERMES_ACCEPT_HOOKS: "1",
-      });
-      const child = spawn(hermesBin, ["mcp", "install", name], {
+      const child = spawnSubprocess(hermesBin, ["mcp", "install", name], {
         cwd: hermesHome(),
-        env: childEnv,
+        env: {
+          ...envVars,
+          NO_COLOR: "1",
+          FORCE_COLOR: "0",
+          TERM: "dumb",
+          // HERMES_ACCEPT_HOOKS=1 auto-approves any shell hook prompts; without
+          // it the install can hang waiting on a TTY confirm we can't satisfy.
+          HERMES_ACCEPT_HOOKS: "1",
+        },
         stdio: ["pipe", "pipe", "pipe"],
       });
 

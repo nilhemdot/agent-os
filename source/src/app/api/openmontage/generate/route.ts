@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawnSubprocess } from "@/lib/runner";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { hermesHome } from "@/lib/config";
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const jobFile = path.join(jobsDir, `${jobId}.json`);
   const outFile = path.join(outDir, `${jobId}.mp4`);
 
-  const child = spawn(
+  const child = spawnSubprocess(
     "python3",
     [script, "--prompt", prompt.trim().slice(0, 600), countFlag, String(n),
       "--out", outFile, "--job", jobFile],

@@ -4,15 +4,12 @@ import { mkdir, stat } from "node:fs/promises";
 import { existsSync, createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import path from "node:path";
 import os from "node:os";
+import { execSubprocess } from "@/lib/runner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const execFileAsync = promisify(execFile);
 const NLM_BIN = existsSync(path.join(os.homedir(), ".local", "bin", "nlm")) ? path.join(os.homedir(), ".local", "bin", "nlm") : "nlm";
 // artifact_type → `nlm download <cmd>` subcommand (handles types download_artifact can't).
 const CLI_CMD: Record<string, string> = {
@@ -100,7 +97,7 @@ export async function POST(req: Request) {
         // No --id (per-notebook-per-type is one artifact; studio ids break --id) and no --no-progress
         // (only audio/video accept it).
         const cliArgs = ["download", CLI_CMD[artifact_type], notebook_id, "--output", output_path];
-        await execFileAsync(NLM_BIN, cliArgs, { timeout: 240_000 });
+        await execSubprocess(NLM_BIN, cliArgs, { timeout: 240_000 });
         if (existsSync(output_path)) { savedPath = output_path; result.via = "nlm-cli"; }
       } catch (e) { result.cliError = String(e); }
     }

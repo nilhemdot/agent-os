@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
+import { spawnSubprocess } from "@/lib/runner";
 import { config, hermesHome } from "@/lib/config";
-import { agentEnv } from "@/lib/runner";
 
 // Lifecycle for the Hermes web dashboard (FastAPI on :9119). Agent OS embeds it
 // in the Hermes → Manage tab so you can configure model/provider, API keys,
@@ -38,11 +37,10 @@ export async function POST() {
   try {
     // --no-open keeps it headless (we frame it). Note: Hermes ≥0.16 dropped the
     // old --tui flag, so passing it errors — keep the args minimal.
-    const child = spawn(bin, ["dashboard", "--no-open", "--port", "9119"], {
+    const child = spawnSubprocess(bin, ["dashboard", "--no-open", "--port", "9119"], {
       detached: true,
       stdio: "ignore",
       cwd: hermesHome(),
-      env: agentEnv(),
     });
     child.unref();
   } catch (e) {

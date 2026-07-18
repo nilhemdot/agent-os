@@ -1,4 +1,5 @@
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, execFile, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { promisify } from "node:util";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -92,6 +93,66 @@ export function agentEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
     FORCE_COLOR: "0",
     ...extra,
   } as unknown as NodeJS.ProcessEnv;
+}
+
+// R1 — subprocess firewall: route all non-agent subprocess launches through here to enforce
+// minimal environment (array args, no API key leakage). ponytail: no shell interpretation,
+// minimal env only (PATH/HOME/SHELL/LANG/TERM); callers pass extra env as needed.
+export interface SpawnSubprocessOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+  detached?: boolean;
+  stdio?: "ignore" | "pipe" | "inherit" | Array<any>; // pass through to spawn
+  encoding?: BufferEncoding; // encoding for spawnSync stdout/stderr
+  timeout?: number; // timeout for spawnSync
+  maxBuffer?: number; // maxBuffer for spawnSync
+}
+
+export function spawnSubprocess(
+  cmd: string,
+  args: string[],
+  opts?: SpawnSubprocessOptions
+): ChildProcessWithoutNullStreams {
+  const env = agentEnv(opts?.env);
+  return spawn(cmd, args, {
+    cwd: opts?.cwd,
+    env,
+    detached: opts?.detached ?? false,
+    ...(opts?.stdio !== undefined && { stdio: opts.stdio }),
+  }) as ChildProcessWithoutNullStreams;
+}
+
+// R1 — spawnSync wrapper: synchronous subprocess with minimal env (for routes that need blocking calls)
+export function spawnSubprocessSync(
+  cmd: string,
+  args: string[],
+  opts?: SpawnSubprocessOptions
+): ReturnType<typeof spawnSync> {
+  const env = agentEnv(opts?.env);
+  return spawnSync(cmd, args, {
+    cwd: opts?.cwd,
+    env,
+    ...(opts?.stdio !== undefined && { stdio: opts.stdio }),
+    ...(opts?.encoding !== undefined && { encoding: opts.encoding }),
+    ...(opts?.timeout !== undefined && { timeout: opts.timeout }),
+    ...(opts?.maxBuffer !== undefined && { maxBuffer: opts.maxBuffer }),
+  });
+}
+
+// R1 — execFile wrapper: route file execution through runner with minimal env
+export const spawnSubprocessExecFile = promisify(execFile);
+export async function execSubprocess(
+  cmd: string,
+  args: string[],
+  opts?: SpawnSubprocessOptions & { timeout?: number; maxBuffer?: number }
+): Promise<{ stdout: string; stderr: string }> {
+  const env = agentEnv(opts?.env);
+  return spawnSubprocessExecFile(cmd, args, {
+    cwd: opts?.cwd,
+    env,
+    timeout: opts?.timeout,
+    maxBuffer: opts?.maxBuffer,
+  });
 }
 
 // M6.4 — hand the agent a free localhost port via $AGENTOS_PORT. Bind :0, read the

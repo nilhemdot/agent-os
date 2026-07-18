@@ -2,7 +2,7 @@ import { orKey, nousToken, workerAct, verdict, DEFAULT_JUDGE } from "@/lib/loopE
 import { minimaxToken } from "@/lib/hermesStudio";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { spawnSubprocess } from "@/lib/runner";
 import path from "node:path";
 import os from "node:os";
 
@@ -56,7 +56,7 @@ async function renderCheck(html: string, signal?: AbortSignal): Promise<{ result
   try {
     await writeFile(tmp, html, "utf8");
     const dom = await new Promise<{ out: string; err: string }>((resolve) => {
-      const child = spawn(bin, [
+      const child = spawnSubprocess(bin, [
         "--headless", "--disable-gpu", "--hide-scrollbars",
         "--enable-logging=stderr", "--v=1", "--virtual-time-budget=3500",
         "--dump-dom", `file://${tmp}`,

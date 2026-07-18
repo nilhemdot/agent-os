@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawnSubprocess } from "@/lib/runner";
 import { existsSync } from "node:fs";
 import { readdir, stat, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
       async function runStep(label: string, cmd: string, args: string[]) {
         emit({ type: "step", label, cmd: `${cmd} ${args.join(" ")}` });
         return new Promise<number>((resolve) => {
-          const p = spawn(cmd, args, { cwd: sitePath, env: { ...process.env, PATH: DEPLOY_PATH, NO_COLOR: "1", CI: "1" } });
+          const p = spawnSubprocess(cmd, args, { cwd: sitePath, env: { PATH: DEPLOY_PATH, NO_COLOR: "1", CI: "1" } });
           p.stdout.on("data", (b) => {
             const t = b.toString();
             allOutput += t;

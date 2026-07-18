@@ -42,6 +42,55 @@ jobs:
         continue-on-error: true
         # non-blocking: D-series lint-debt burn-down in progress (M8.18); typecheck/test/eval are the hard gates
 
+      - name: Security lint - forbid child_process in app/features (R1.4)
+        working-directory: source
+        run: |
+          # R1.4: All subprocess launches must route through runner.ts (spawnSubprocess, run, spawnStream)
+          # Check for: from imports, require(), and dynamic import() patterns
+          PATTERNS=(
+            "from ['\"]child_process['\"]"
+            "from ['\"]node:child_process['\"]"
+            "require\(\s*['\"]child_process['\"]\s*\)"
+            "require\(\s*['\"]node:child_process['\"]\s*\)"
+            "import\(\s*['\"]child_process['\"]\s*\)"
+            "import\(\s*['\"]node:child_process['\"]\s*\)"
+          )
+          VIOLATIONS=""
+          for PATTERN in "${PATTERNS[@]}"; do
+            FOUND=$(grep -rE "$PATTERN" src/app src/features 2>/dev/null || true)
+            if [ -n "$FOUND" ]; then
+              VIOLATIONS="$VIOLATIONS$FOUND"$'\n'
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "ERROR: Direct child_process imports found in src/app/** or src/features/** (R1.4 violation)"
+            echo "$VIOLATIONS"
+            echo "Use spawnSubprocess/run/spawnStream from @/lib/runner instead"
+            exit 1
+          fi
+        # Blocking job: fails CI immediately on any child_process import in app/features
+
+      - name: Security lint - ESLint no-restricted-imports (R1.4, AST-level)
+        working-directory: source
+        run: |
+          # AST-level backstop for the grep check above: catches aliased/re-exported
+          # static imports and dynamic import() that text patterns can miss.
+          # Scoped to the R1.4 rule only so the pre-existing lint backlog (M8.18)
+          # cannot fail this job.
+          npx eslint 'src/app/**/*.{js,jsx,ts,tsx}' 'src/features/**/*.{js,jsx,ts,tsx}' \
+            --no-error-on-unmatched-pattern --format json > /tmp/eslint-r14.json || true
+          node -e "
+            const results = require('/tmp/eslint-r14.json');
+            const hits = results.flatMap(f => f.messages
+              .filter(m => m.ruleId === 'no-restricted-imports')
+              .map(m => f.filePath + ':' + m.line + ' ' + m.message));
+            if (hits.length) {
+              console.error('R1.4 ESLint violations:\n' + hits.join('\n'));
+              process.exit(1);
+            }
+            console.log('R1.4 ESLint check clean (' + results.length + ' files)');
+          "
+
       - name: Run tests (includes adversarial suite m8-*.test.ts)
         working-directory: source
         run: npm run test

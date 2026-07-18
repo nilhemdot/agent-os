@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { exec } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
+import { spawnSubprocessSync } from "@/lib/runner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +15,15 @@ const PATH_EXTRA = ["/opt/homebrew/bin", "/usr/local/bin", `${HOME}/.local/bin`]
 
 function sh(script: string, timeoutMs: number): Promise<{ ok: boolean; out: string }> {
   return new Promise((resolve) => {
-    exec(`bash ${JSON.stringify(script)}`, { timeout: timeoutMs, env: { ...process.env, PATH: `${PATH_EXTRA}:${process.env.PATH ?? ""}` } },
-      (err, stdout, stderr) => resolve({ ok: !err, out: (stdout + stderr).trim().slice(-700) }));
+    // R1.H2: removed shell invocation (exec → spawnSubprocessSync with array args), verify script is not attacker-controlled
+    // script comes from hardcoded START/STOP paths, not user input → safe to use directly
+    const result = spawnSubprocessSync("bash", [script], {
+      env: { PATH: `${PATH_EXTRA}:${process.env.PATH ?? ""}` },
+      timeout: timeoutMs,
+      encoding: "utf8",
+    });
+    const out = ((result.stdout as string) || "") + ((result.stderr as string) || "");
+    resolve({ ok: result.status === 0, out: out.trim().slice(-700) });
   });
 }
 

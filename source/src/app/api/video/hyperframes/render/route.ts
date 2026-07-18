@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { spawn } from "node:child_process";
-import { agentEnv } from "@/lib/runner";
+import { spawnSubprocess } from "@/lib/runner";
 import { createWriteStream } from "node:fs";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
@@ -50,14 +49,13 @@ export async function POST(req: Request) {
   // hyperframes render [DIR] --output <path>
   // The first arg is the project DIRECTORY (default index.html composition).
   // Quiet flag = less spammy logs; --workers=2 caps RAM for safety.
-  const child = spawn(HYPERFRAMES_BIN, [
+  const child = spawnSubprocess(HYPERFRAMES_BIN, [
     "render",
     cwd,
     "--output", outputPath,
     "--workers", "2",
   ], {
     cwd,
-    env: agentEnv(),
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
   });

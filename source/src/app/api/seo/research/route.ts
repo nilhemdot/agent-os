@@ -1,10 +1,7 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-
-const pexec = promisify(execFile);
+import { execSubprocess } from "@/lib/runner";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -48,10 +45,10 @@ export async function POST(req: Request) {
     for (const w of seed.slice(0, 80).split(/\s+/).filter(Boolean).slice(0, 8)) args.push(w);
   }
   try {
-    const { stdout } = await pexec(PY, args, {
+    const { stdout } = await execSubprocess(PY, args, {
       timeout: 90_000,
       maxBuffer: 12 * 1024 * 1024,
-      env: { ...process.env, PYTHONWARNINGS: "ignore" },
+      env: { PYTHONWARNINGS: "ignore" },
     });
     const line = stdout.trim().split("\n").filter(Boolean).pop() || "{}";
     const data = JSON.parse(line);
