@@ -23,6 +23,10 @@ export interface CheckpointRow {
   git_ref: string; git_sha: string; base_sha: string | null; created_at: string;
   storage: string; manifest_json: string | null;
 }
+export interface MemoryRow {
+  id: string; tier: string; origin: string; trust: string; source_path: string | null;
+  content: string; created_at: string; last_verified_at: string | null; promoted_by: string | null;
+}
 
 const migrations = [
   `CREATE TABLE runs (
@@ -132,6 +136,23 @@ const migrations = [
   // git_ref/git_sha are reused for the fs backend (both NOT NULL) rather than adding nullable twins.
   `ALTER TABLE checkpoints ADD COLUMN storage TEXT NOT NULL DEFAULT 'git';
    ALTER TABLE checkpoints ADD COLUMN manifest_json TEXT;`,
+  // M7 — Memory with provenance and trust tier (§3.4 / §4.3). Agent-authored, web-retrieved,
+  // and repo-sourced memories are quarantined: retrievable, never resident, never written to
+  // the vault without a human accept. INVARIANT: origin != 'human' AND promoted_by IS NULL
+  // ⇒ never enters resident context.
+  `CREATE TABLE memory (
+     id TEXT PRIMARY KEY,
+     tier TEXT NOT NULL,            -- 'core' | 'recall' | 'archival'
+     origin TEXT NOT NULL,          -- 'human' | 'agent' | 'web' | 'repo'
+     trust TEXT NOT NULL,           -- 'trusted' | 'quarantined'
+     source_path TEXT,
+     content TEXT NOT NULL,
+     created_at TEXT NOT NULL,
+     last_verified_at TEXT,
+     promoted_by TEXT               -- NULL until a human promotes it
+   );
+   CREATE INDEX memory_origin_trust ON memory(origin, trust);
+   CREATE INDEX memory_promoted_by ON memory(promoted_by);`,
 ];
 
 let singleton: DatabaseSync | undefined;

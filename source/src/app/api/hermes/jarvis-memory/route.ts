@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { appendMemory, listMemories } from "@/lib/jarvisMemory";
+import { appendMemory, listResidentMemories } from "@/lib/jarvisMemory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // GET → everything Jarvis has been told to remember (newest first).
 export async function GET() {
   try {
-    return NextResponse.json({ memories: await listMemories(50) });
+    return NextResponse.json({ memories: await listResidentMemories(50) });
   } catch (e) {
     return NextResponse.json({ memories: [], error: String(e) }, { status: 200 });
   }

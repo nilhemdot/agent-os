@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { NextRequest } from "next/server";
 import { POST } from "@/app/api/memory/promote/route";
 import * as memoryStore from "@/lib/memoryStore";
 import * as vaultWriter from "@/lib/vaultWriter";
@@ -37,7 +38,7 @@ describe("M8.17 Promote Route Regression Tests", () => {
       expect(mem.trust).toBe("quarantined");
 
       // Make request to promote
-      const request = new Request("http://localhost/api/memory/promote", {
+      const request = new NextRequest("http://localhost/api/memory/promote", {
         method: "POST",
         body: JSON.stringify({
           id: mem.id,
@@ -75,7 +76,7 @@ describe("M8.17 Promote Route Regression Tests", () => {
       });
 
       // Make request to promote
-      const request = new Request("http://localhost/api/memory/promote", {
+      const request = new NextRequest("http://localhost/api/memory/promote", {
         method: "POST",
         body: JSON.stringify({
           id: mem.id,
@@ -96,7 +97,7 @@ describe("M8.17 Promote Route Regression Tests", () => {
     });
 
     it("returns 400 when id is missing", async () => {
-      const request = new Request("http://localhost/api/memory/promote", {
+      const request = new NextRequest("http://localhost/api/memory/promote", {
         method: "POST",
         body: JSON.stringify({
           actor: "user",
@@ -112,7 +113,7 @@ describe("M8.17 Promote Route Regression Tests", () => {
     });
 
     it("returns 400 when actor is missing", async () => {
-      const request = new Request("http://localhost/api/memory/promote", {
+      const request = new NextRequest("http://localhost/api/memory/promote", {
         method: "POST",
         body: JSON.stringify({
           id: "mem_123",
@@ -128,7 +129,7 @@ describe("M8.17 Promote Route Regression Tests", () => {
     });
 
     it("returns 400 when actor is not 'user'", async () => {
-      const request = new Request("http://localhost/api/memory/promote", {
+      const request = new NextRequest("http://localhost/api/memory/promote", {
         method: "POST",
         body: JSON.stringify({
           id: "mem_123",
