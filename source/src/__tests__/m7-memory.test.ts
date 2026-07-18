@@ -116,6 +116,18 @@ describe("M7 Memory Store", () => {
       expect(promoted.promoted_by).toBe("user");
     });
 
+    it("throws when promoting human-origin memory (Spec §4.3 INVARIANT)", () => {
+      const human = addMemory({
+        tier: "core",
+        origin: "human",
+        content: "user memory",
+      });
+      expect(human.trust).toBe("trusted");
+      expect(() => {
+        promoteMemory(human.id, "user");
+      }).toThrow("human-origin memories cannot be promoted");
+    });
+
     it("demotes trusted record back to quarantined", () => {
       const mem = addMemory({
         tier: "core",
@@ -128,6 +140,17 @@ describe("M7 Memory Store", () => {
       const demoted = demoteMemory(mem.id, "user");
       expect(demoted.trust).toBe("quarantined");
       expect(demoted.promoted_by).toBeNull();
+    });
+
+    it("throws when demoting human-origin memory (Spec §4.3 INVARIANT)", () => {
+      const human = addMemory({
+        tier: "core",
+        origin: "human",
+        content: "user memory",
+      });
+      expect(() => {
+        demoteMemory(human.id, "user");
+      }).toThrow("human-origin memories cannot be demoted");
     });
 
     it("promoted record appears in getResidentContext", () => {

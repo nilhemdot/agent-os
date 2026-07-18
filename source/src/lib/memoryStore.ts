@@ -230,6 +230,15 @@ export function promoteMemory(id: string, actor: string): Memory {
   if (actor !== "user") throw new Error("only 'user' actor allowed");
   const db = openDb();
   try {
+    // ponytail: Spec §4.3 INVARIANT — human-origin memories are always trusted;
+    // promotion is a no-op for them. Detect and guard before DB mutation.
+    const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
+      | { origin: string }
+      | undefined;
+    if (existing?.origin === "human") {
+      throw new Error("human-origin memories cannot be promoted");
+    }
+
     db.prepare("UPDATE memory SET trust = 'trusted', promoted_by = ? WHERE id = ?").run(
       actor,
       id
@@ -251,6 +260,15 @@ export function demoteMemory(id: string, actor: string): Memory {
   if (actor !== "user") throw new Error("only 'user' actor allowed");
   const db = openDb();
   try {
+    // ponytail: Spec §4.3 INVARIANT — human-origin memories are always trusted;
+    // demotion is forbidden for them. Detect and guard before DB mutation.
+    const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
+      | { origin: string }
+      | undefined;
+    if (existing?.origin === "human") {
+      throw new Error("human-origin memories cannot be demoted");
+    }
+
     db.prepare("UPDATE memory SET trust = 'quarantined', promoted_by = NULL WHERE id = ?").run(id);
     db.prepare(`
       INSERT INTO memory_audit (memory_id, action, actor, at)

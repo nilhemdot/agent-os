@@ -8,7 +8,6 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { VAULT_ROOT } from "./vault";
-import { randomUUID } from "node:crypto";
 import { ledgerDb, type MemoryRow } from "./ledger";
 
 const STATE_DIR = path.join(os.homedir(), ".agentic-os");
@@ -44,10 +43,12 @@ async function appendToVault(text: string, ts: number): Promise<void> {
 /**
  * Append memory with provenance tracking.
  * R2.3: human-origin → DB + JSONL + vault; non-human → DB + JSONL only.
+ * R3.4: ID generation standardized to memoryStore format mem_<ts>_<rand>.
  */
 export async function appendMemory(text: string, origin: MemoryOrigin = "agent"): Promise<JarvisMemory> {
   const ts = Date.now();
-  const id = randomUUID();
+  // ponytail: Match memoryStore's ID format for consistency across modules
+  const id = `mem_${ts}_${Math.random().toString(36).slice(2, 8)}`;
   const trust: MemoryTrust = origin === "human" ? "trusted" : "quarantined";
   const row: JarvisMemory = {
     id,

@@ -21,7 +21,7 @@ afterEach(() => {
 
 describe("M8.17 Promote Route Regression Tests", () => {
   describe("POST /api/memory/promote", () => {
-    it("returns 500 when vault write fails", async () => {
+    it("returns 500 when vault write fails, memory stays quarantined", async () => {
       // Mock vault writer to fail
       vi.spyOn(vaultWriter, "appendMemory").mockResolvedValue({
         path: "",
@@ -36,6 +36,7 @@ describe("M8.17 Promote Route Regression Tests", () => {
       });
 
       expect(mem.trust).toBe("quarantined");
+      expect(mem.promoted_by).toBeNull();
 
       // Make request to promote
       const request = new NextRequest("http://localhost/api/memory/promote", {
@@ -55,10 +56,16 @@ describe("M8.17 Promote Route Regression Tests", () => {
       expect(data.error).toContain("Vault write failed");
       expect(data.data).toBeUndefined();
 
-      // Verify memory is still quarantined after failed promotion
+      // Regression test (R3.2): memory stays quarantined after vault failure
+      const quarantined = memoryStore.listQuarantined();
+      const found = quarantined.find((m) => m.id === mem.id);
+      expect(found).toBeDefined();
+      expect(found?.trust).toBe("quarantined");
+      expect(found?.promoted_by).toBeNull();
+
+      // Verify NOT in resident context
       const resident = memoryStore.getResidentContext();
-      const found = resident.find((m) => m.id === mem.id);
-      expect(found).toBeUndefined();
+      expect(resident.find((m) => m.id === mem.id)).toBeUndefined();
     });
 
     it("returns 200 with data when promotion succeeds", async () => {

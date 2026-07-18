@@ -41,31 +41,66 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Promote the memory
-    const memory = memoryStore.promoteMemory(id, actor);
+    // ponytail: R3.2 CRITICAL — Reorder to vault-first pattern (Spec §4.3 line 487).
+    // Vault write first: if it fails, memory stays quarantined (no promote, no rollback).
+    // DB promote second: if vault succeeds but promote fails, vault entry orphaned but
+    // acceptable (human consent already recorded in vault write).
 
-    // Write to vault
+    // Get memory content for vault write (needed early)
+    let resident;
+    try {
+      resident = memoryStore.getResidentContext().find((m) => m.id === id);
+      // Check if memory exists at all (quarantined or resident)
+      if (!resident) {
+        // Check quarantined to distinguish "not found" from "not resident"
+        const quarantined = memoryStore.listQuarantined();
+        if (!quarantined.find((m) => m.id === id)) {
+          return NextResponse.json(
+            { ok: false, error: "Memory not found" },
+            { status: 404 }
+          );
+        }
+        // Get the full quarantined memory for vault write
+        resident = quarantined.find((m) => m.id === id)!;
+      }
+    } catch (err) {
+      return NextResponse.json(
+        { ok: false, error: `Failed to fetch memory: ${String(err)}` },
+        { status: 500 }
+      );
+    }
+
+    // Step 1: Write to vault FIRST (with memory ID for safe removal)
     const vaultResult = await vaultWriter.appendMemory({
       agent: "user",
       kind: "note",
-      text: memory.content,
+      text: resident.content,
+      memoryId: id,
     });
 
     if (!vaultResult.ok) {
-      // Rollback: demote the memory back to quarantined if vault write failed
-      try {
-        memoryStore.demoteMemory(id, "user");
-      } catch { /* ignore rollback errors */ }
+      // Vault write failed → memory stays quarantined, no promotion
       return NextResponse.json(
         { ok: false, error: "Vault write failed" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      data: memory,
-    });
+    // Step 2: Vault succeeded → promote in DB
+    // If promote fails, vault entry is orphaned (acceptable per spec)
+    try {
+      const memory = memoryStore.promoteMemory(id, actor);
+      return NextResponse.json({
+        ok: true,
+        data: memory,
+      });
+    } catch (promoteErr) {
+      // DB promote failed after vault write: return 500 with detail
+      return NextResponse.json(
+        { ok: false, error: `Promotion failed: ${String(promoteErr)}` },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: String(error) },

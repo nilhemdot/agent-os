@@ -36,13 +36,17 @@ export async function appendMemory(entry: {
   reply?: string;
   text?: string;
   meta?: Record<string, unknown>;
+  memoryId?: string; // ponytail: stable ID for removal tracking
 }): Promise<{ path: string; ok: boolean }> {
   await ensureDir(MEMORIES_DIR);
   const day = todayISO();
   const file = path.join(MEMORIES_DIR, `${day}.md`);
   const exists = await fileExists(file);
   const header = `---\ntags: [memory, agentic-os, ${day}]\ndate: ${day}\n---\n\n# 🧠 Agentic OS Memory — ${day}\n\n`;
+  // ponytail: Embed memory ID in vault block for safe removal (R3.3 security fix)
+  const idMarker = entry.memoryId ? `<!-- mem:${entry.memoryId} -->` : "";
   const block = [
+    idMarker,
     `## ${nowHM()} · ${entry.agent} · ${entry.kind}`,
     entry.user ? `\n**You:** ${entry.user}\n` : "",
     entry.reply ? `\n**${entry.agent}:** ${entry.reply}\n` : "",
@@ -58,6 +62,48 @@ export async function appendMemory(entry: {
     }
     return { path: path.relative(VAULT_ROOT, file), ok: true };
   } catch { return { path: "", ok: false }; }
+}
+
+export async function removeMemory(memoryId: string): Promise<{ ok: boolean; error?: string }> {
+  // ponytail: R3.3 security fix — Remove memory entries from vault by stable ID.
+  // Match blocks by exact id marker (<!-- mem:ID -->) to prevent substring injection.
+  // Refuse removal if id matches multiple blocks (data integrity safeguard).
+  if (!VAULT_ROOT || !memoryId.trim()) return { ok: false, error: "Invalid memory id" };
+
+  try {
+    const items = await readdir(MEMORIES_DIR);
+    const mdFiles = items.filter((n) => /^\d{4}-\d{2}-\d{2}\.md$/.test(n));
+    let totalMatches = 0;
+
+    for (const file of mdFiles) {
+      const filePath = path.join(MEMORIES_DIR, file);
+      try {
+        const content = await readFile(filePath, "utf8");
+        const idMarker = `<!-- mem:${memoryId} -->`;
+        const matchCount = (content.match(new RegExp(idMarker, "g")) || []).length;
+        totalMatches += matchCount;
+
+        if (matchCount > 0) {
+          // Remove the line containing the id marker and the following block up to ---
+          const lines = content.split(/\n/);
+          const filtered = lines.filter((line) => !line.includes(idMarker));
+          const updated = filtered.join("\n");
+          await writeFile(filePath, updated, "utf8");
+        }
+      } catch {
+        // Skip this file if read/write fails; continue with next
+      }
+    }
+
+    // Security: refuse removal if multiple blocks found (data integrity)
+    if (totalMatches > 1) {
+      return { ok: false, error: `Data integrity error: ${totalMatches} blocks match id '${memoryId}'. Removal refused.` };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 }
 
 export async function listMemoryDays(limit = 14): Promise<{ date: string; path: string }[]> {

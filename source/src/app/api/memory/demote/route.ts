@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { demoteMemory } from "@/lib/memoryStore";
+import * as vaultWriter from "@/lib/vaultWriter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,13 @@ export async function POST(req: Request) {
     }
 
     const mem = demoteMemory(id, actor);
+
+    // R3.3: On successful demotion, remove from vault by stable ID (best-effort)
+    const removeResult = await vaultWriter.removeMemory(id);
+    if (!removeResult.ok) {
+      // Log the error but don't fail the demotion (best-effort vault removal)
+      console.warn(`Failed to remove memory ${id} from vault:`, removeResult.error);
+    }
 
     return NextResponse.json(
       { ok: true, data: mem } as ApiResponse<typeof mem>,
