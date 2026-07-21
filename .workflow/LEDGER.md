@@ -1,24 +1,20 @@
-# Requirements Ledger — LOW hardening batch 1: M5-1, M5-2, demote-404
+# Requirements Ledger — LOW batch 2: R3-1 jarvisMemory deletion + R3-4 JSONL
 
-Source: AgentOS_OutOfScope_Backlog.md §8 M5-1/M5-2 + R3-O8 residual note.
-(File consumed by ledger-guard hooks only; instruction: "continue build".)
+Source: AgentOS_OutOfScope_Backlog.md §12 R3-1, R3-4. Verified: only
+importer of jarvisMemory is r2-memory-provenance.test.ts (route ref is a
+comment). Module is dead production code; deleting it also removes the
+JSONL writer (R3-4).
 
-- [x] 1. M5-1: `isWorkingTreeDirty` (checkpoints.ts) fails CLOSED — git
-      error → treat as dirty (return true). Caller at :296 then 409s with
-      "pass force to overwrite"; `force` stays the escape hatch. Update
-      ponytail comment to state the new posture.
-- [x] 2. M5-2: `--` separator before git positional sha args in
-      checkpoints.ts where the subcommand supports it (worktree add).
-      read-tree/update-ref take refs/shas only (no pathspec ambiguity) —
-      verify and document rather than blindly adding.
-- [x] 3. Demote route: `getMemoryById(id)` pre-check → 404 "Memory not
-      found" on absent id (parity with promote route), before
-      demoteMemory call.
-- [x] 4. Tests: demote 404 case added (route-level or store-level per
-      existing demote test pattern); M5-1 flip covered (git-error → dirty
-      true) if mockable cheaply, else assert via comment-documented
-      manual reasoning in test file NOT required — suite must stay green.
-- [x] 5. Suite green, tsc clean, eslint clean on touched files.
-- [x] 6. Backlog: M5-1/M5-2 + demote residual marked resolved; roll-up
-      unchanged (all LOW).
-- [x] 7. Commit + push.
+- [x] 1. Rewrite `r2-memory-provenance.test.ts` against memoryStore +
+      memory.db (temp-DB pattern), preserving every R2 invariant the test
+      documents: schema columns, agent-origin → quarantined, human-origin
+      → trusted, promote gate (user actor only), resident context
+      excludes quarantined.
+- [x] 2. Delete `src/lib/jarvisMemory.ts`. Zero remaining references
+      (grep clean, comment refs updated/kept as history where accurate).
+- [x] 3. R3-4: JSONL writing ends with the module. Existing
+      `~/.agentic-os/jarvis-memory.jsonl` on-disk file untouched
+      (historical artifact; note in backlog).
+- [x] 4. Suite green, tsc clean, eslint clean on touched files.
+- [x] 5. Backlog: R3-1 + R3-4 resolved; roll-up unchanged (LOW).
+- [x] 6. Commit + push.

@@ -259,9 +259,8 @@ The eslint flat-config globals gap (only React/JSX declared) was fixed this sess
 
 ### R3 Completion Findings
 
-**R3-1 — jarvisMemory module can be deleted post-R3 (LOW).**
-Module is still imported by r2-memory-provenance.test.ts for backward-compatibility testing. Could be fully deleted if the test is updated to use memoryStore directly. Current state: r2 test uses jarvisMemory.appendMemory/listResidentMemories/promoteMemory; route layer has migrated to memoryStore.
-→ **Home: backlog (test-level cleanup, not urgent).**
+**R3-1 — jarvisMemory module deletion — ✅ RESOLVED (LOW batch 2, 2026-07-21).**
+`r2-memory-provenance.test.ts` rewritten against memoryStore (all R2 invariants preserved; R2.3 JSONL backward-compat retired — origin CHECK constraint enforces the closed set at schema level). `src/lib/jarvisMemory.ts` deleted; zero remaining importers.
 
 **R3-2 — Vault file cleanup after mass removal (LOW).**
 removeMemory() leaves empty blocks in vault files (removes only the id-marker line, preserves formatting/separators). Vault files can accumulate whitespace but remain valid markdown. Add a cleanup job if vault file bloat becomes observable.
@@ -271,9 +270,8 @@ removeMemory() leaves empty blocks in vault files (removes only the id-marker li
 Two simultaneous `POST /api/memory/demote` for one id with concurrent vault removal are not serialized. SQLite `UPDATE` + vault-removal are separate operations. Acceptable under localhost single-user; revisit if concurrent writers land.
 → **Home: concurrent-worker milestone / transaction wrapping.**
 
-**R3-4 — JSONL deprecation candidate (LOW).**
-jarvisMemory still writes to `~/.agentic-os/jarvis-memory.jsonl` but no active consumers visible in routes (all moved to DB). Candidate for cleanup or user-data export if JSONL is considered a backup/audit trail.
-→ **Home: backlog (data export / deprecation if confirmed dead).**
+**R3-4 — JSONL deprecation — ✅ RESOLVED (LOW batch 2, 2026-07-21).**
+The JSONL writer lived only in jarvisMemory — gone with R3-1. Existing `~/.agentic-os/jarvis-memory.jsonl` on disk is untouched (historical artifact; delete manually if unwanted).
 
 **R3-5 — Vault ID-marker format depends on URL-safe character safety (LOW).**
 removeMemory() matches the substring `<!-- mem:ID -->` which assumes memory IDs contain no newlines or comment-breaking characters. Current ID format (mem_<ts>_<rand>, [0-9a-z_]) is safe. If ID format ever changes to include special chars, validate marker format or escape.
