@@ -16,7 +16,7 @@ describe("X API", () => {
   beforeEach(() => {
     // Mock global fetch
     fetchMock = vi.fn();
-    global.fetch = fetchMock as any;
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     // Clear env
     delete process.env.X_CONSUMER_KEY;

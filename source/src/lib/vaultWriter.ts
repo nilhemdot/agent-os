@@ -9,6 +9,24 @@ export const JOURNAL_DIR = AGENTIC_DIR ? path.join(AGENTIC_DIR, "Journal") : "";
 export const GOALS_FILE = AGENTIC_DIR ? path.join(AGENTIC_DIR, "Goals.md") : "";
 export const VAULT_AVAILABLE = Boolean(VAULT_ROOT);
 
+// H2: Validate memory ID format to prevent regex injection at route boundaries
+export function isValidMemoryId(id: string): boolean {
+  if (!id || typeof id !== "string") return false;
+
+  // Generated format: mem_<timestamp>_<alphanumeric>
+  if (/^mem_\d+_[a-z0-9]+$/i.test(id)) {
+    return true;
+  }
+
+  // Legacy format: reject if contains regex metacharacters (ponytail: R3.8 security)
+  if (/[.*+?^${}()|[\]\\]/.test(id)) {
+    return false;
+  }
+
+  // Accept non-metachar strings (legacy backward compat, edge case)
+  return true;
+}
+
 export function todayISO(d = new Date()): string {
   const tz = -d.getTimezoneOffset();
   const local = new Date(d.getTime() + tz * 60_000);
@@ -65,8 +83,8 @@ export async function appendMemory(entry: {
 }
 
 export async function removeMemory(memoryId: string): Promise<{ ok: boolean; error?: string }> {
-  // ponytail: R3.3 security fix — Remove memory entries from vault by stable ID.
-  // Match blocks by exact id marker (<!-- mem:ID -->) to prevent substring injection.
+  // ponytail: R3.8 security fix — Remove memory entries from vault by stable ID.
+  // H1: Match blocks by exact string (indexOf/split), not regex, to prevent regex injection.
   // Refuse removal if id matches multiple blocks (data integrity safeguard).
   if (!VAULT_ROOT || !memoryId.trim()) return { ok: false, error: "Invalid memory id" };
 
@@ -80,11 +98,12 @@ export async function removeMemory(memoryId: string): Promise<{ ok: boolean; err
       try {
         const content = await readFile(filePath, "utf8");
         const idMarker = `<!-- mem:${memoryId} -->`;
-        const matchCount = (content.match(new RegExp(idMarker, "g")) || []).length;
+        // ponytail: Count exact string matches via split (avoids regex injection from id)
+        const matchCount = (content.split(idMarker).length - 1);
         totalMatches += matchCount;
 
         if (matchCount > 0) {
-          // Remove the line containing the id marker and the following block up to ---
+          // Remove the line containing the id marker
           const lines = content.split(/\n/);
           const filtered = lines.filter((line) => !line.includes(idMarker));
           const updated = filtered.join("\n");

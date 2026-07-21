@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // H2: Validate id format before DB/vault operations
+    if (!vaultWriter.isValidMemoryId(id)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid id format" },
+        { status: 400 }
+      );
+    }
+
     // ponytail: R3.2 CRITICAL — Reorder to vault-first pattern (Spec §4.3 line 487).
     // Vault write first: if it fails, memory stays quarantined (no promote, no rollback).
     // DB promote second: if vault succeeds but promote fails, vault entry orphaned but

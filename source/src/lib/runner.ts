@@ -102,7 +102,7 @@ export interface SpawnSubprocessOptions {
   cwd?: string;
   env?: Record<string, string>;
   detached?: boolean;
-  stdio?: "ignore" | "pipe" | "inherit" | Array<any>; // pass through to spawn
+  stdio?: import("node:child_process").StdioOptions; // pass through to spawn
   encoding?: BufferEncoding; // encoding for spawnSync stdout/stderr
   timeout?: number; // timeout for spawnSync
   maxBuffer?: number; // maxBuffer for spawnSync

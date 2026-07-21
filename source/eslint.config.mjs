@@ -84,6 +84,13 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
     },
   },
+  // Project-wide tuning: empty `catch {}` blocks are the codebase's intentional
+  // best-effort pattern (cleanup, optional probes); non-catch empty blocks still error.
+  {
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: true }],
+    },
+  },
   // R1.4 security invariant (§4.2): app/features must not spawn subprocesses
   // directly — all launches route through the runner chokepoint.
   // User-authorized edit 2026-07-18; see .workflow/LEDGER.md R1.4.

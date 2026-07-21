@@ -39,6 +39,14 @@ export async function POST(req: Request) {
       );
     }
 
+    // H2: Validate id format before DB/vault operations
+    if (!vaultWriter.isValidMemoryId(id)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid id format" } as ApiResponse<never>,
+        { status: 400 }
+      );
+    }
+
     const mem = demoteMemory(id, actor);
 
     // R3.3: On successful demotion, remove from vault by stable ID (best-effort)
