@@ -83,10 +83,12 @@ jobs:
           # static imports and dynamic import() that text patterns can miss.
           # Scoped to the R1.4 rule only so the pre-existing lint backlog (M8.18)
           # cannot fail this job.
+          # workspace-relative temp file: /tmp is bash-only on windows runners,
+          # and node.exe cannot resolve it
           npx eslint 'src/app/**/*.{js,jsx,ts,tsx}' 'src/features/**/*.{js,jsx,ts,tsx}' \
-            --no-error-on-unmatched-pattern --format json > /tmp/eslint-r14.json || true
+            --no-error-on-unmatched-pattern --format json > eslint-r14.json || true
           node -e "
-            const results = require('/tmp/eslint-r14.json');
+            const results = require('./eslint-r14.json');
             const hits = results.flatMap(f => f.messages
               .filter(m => m.ruleId === 'no-restricted-imports')
               .map(m => f.filePath + ':' + m.line + ' ' + m.message));
@@ -96,6 +98,7 @@ jobs:
             }
             console.log('R1.4 ESLint check clean (' + results.length + ' files)');
           "
+          rm -f eslint-r14.json
 
       - name: Run tests (includes adversarial suite m8-*.test.ts)
         working-directory: source
