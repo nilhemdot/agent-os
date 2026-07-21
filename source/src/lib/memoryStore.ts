@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { runMigrations } from "./memoryMigrations";
 
 // ─── DB initialization ──────────────────────────────────────────────────────
 function memoryDbPath(): string {
@@ -10,67 +11,9 @@ function memoryDbPath(): string {
   return file;
 }
 
-function initDb(db: DatabaseSync): void {
-  // Main memory table per §4.3
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS memory (
-      id TEXT PRIMARY KEY,
-      tier TEXT NOT NULL CHECK(tier IN ('core', 'recall', 'archival')),
-      origin TEXT NOT NULL CHECK(origin IN ('human', 'agent', 'web', 'repo')),
-      trust TEXT NOT NULL CHECK(trust IN ('trusted', 'quarantined')),
-      source_path TEXT,
-      content TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      last_verified_at TEXT,
-      promoted_by TEXT
-    )
-  `);
-
-  // Audit table for promotion/demotion tracking
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS memory_audit (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      memory_id TEXT NOT NULL REFERENCES memory(id),
-      action TEXT NOT NULL CHECK(action IN ('promote', 'demote')),
-      actor TEXT NOT NULL,
-      at TEXT NOT NULL
-    )
-  `);
-
-  // FTS5 virtual table over content (contentless pattern for memory safety)
-  db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
-      content,
-      content=memory,
-      content_rowid=rowid
-    )
-  `);
-
-  // Sync triggers: insert → FTS5
-  db.exec(`
-    CREATE TRIGGER IF NOT EXISTS memory_ai AFTER INSERT ON memory BEGIN
-      INSERT INTO memory_fts(rowid, content) VALUES (new.rowid, new.content);
-    END
-  `);
-
-  // Sync triggers: update → FTS5
-  db.exec(`
-    CREATE TRIGGER IF NOT EXISTS memory_au AFTER UPDATE ON memory BEGIN
-      UPDATE memory_fts SET content = new.content WHERE rowid = new.rowid;
-    END
-  `);
-
-  // Sync triggers: delete → FTS5
-  db.exec(`
-    CREATE TRIGGER IF NOT EXISTS memory_ad AFTER DELETE ON memory BEGIN
-      DELETE FROM memory_fts WHERE rowid = old.rowid;
-    END
-  `);
-}
-
 function openDb(): DatabaseSync {
   const db = new DatabaseSync(memoryDbPath());
-  initDb(db);
+  runMigrations(db);
   return db;
 }
 

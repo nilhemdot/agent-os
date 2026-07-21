@@ -295,9 +295,8 @@ Schema defines three tiers: `core`, `recall`, `archival`. All observed appends u
 memory table has `created_at` but no `expires_at` or `archived_at`. memory_audit table grows forever. No retention policy visible. Define TTL; add archival strategy (e.g., move old memories to archival tier after N days, compact memory_audit monthly).
 → **Home: R4+ memory lifecycle design.**
 
-**R3-O4 — Schema evolution hazard (MEDIUM).**
-No migration framework visible. If schema needs to change (add columns, rename tier values, split memory table), no clear upgrade path. Risk: deployments on old schema, skew between instances. Mitigation: codify migrations as numbered SQL files (db/migrations/N-*.sql); run on startup with version tracking.
-→ **Home: R4 schema versioning / migration framework.**
+**R3-O4 — Schema evolution hazard — ✅ RESOLVED (2026-07-21).**
+Migration framework in `src/lib/memoryMigrations.ts`: inline TS migration list (deviation from the numbered-.sql-files suggestion — Turbopack bundles the server, runtime .sql reads are fragile) tracked via `PRAGMA user_version`. Baseline DDL is migration 1 (IF NOT EXISTS, so legacy v0 DBs adopt without data loss). Each migration applies in its own transaction with the version bump inside it (atomic schema+version); list validated contiguous-from-1; DB newer than code throws (no downgrade). `openDb()` runs it on every open (no-op at current version). 10 tests cover fresh init, legacy adoption, rollback, validation, future-version rejection, idempotency. Scope: memory.db only — kanban DB has no migration story (unchanged, LOW if ever needed).
 
 **R3-O5 — FTS5 sync fragility (LOW).**
 memory_fts virtual table kept in sync via triggers. If trigger fails or is disabled, FTS5 index diverges from memory table. Searches may return stale or miss recent entries. Mitigation: periodic `REBUILD memory_fts`; test trigger failure scenarios; add FTS5 consistency check in stats endpoint or startup.
@@ -430,8 +429,8 @@ Lint 0 errors, full vitest green, tsc clean; no hardcoded tokens anywhere; nothi
 | Severity | Items |
 |---|---|
 | HIGH | H7 (no egress tap — inherent) |
-| MEDIUM | H10 (DPAPI unverified), H14 (OTLP temporality), R3-O4 (schema evolution), X5 (radar x-post route) |
-| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass), H9 (424d2e6), M8-5 (CI matrix observed 2026-07-21), M8-6 (decided: WSL2 supported path) |
+| MEDIUM | H10 (DPAPI unverified), H14 (OTLP temporality), X5 (radar x-post route) |
+| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass), H9 (424d2e6), M8-5 (CI matrix observed 2026-07-21), M8-6 (decided: WSL2 supported path), R3-O4 (2026-07-21 migration framework) |
 | LOW | H3, H4, H5, H6, H8, H11, H12, H13, M5-1..M5-7, M6-1..M6-7, M7-1..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
 | Deferred by design | M8-2 (live eval runner — hybrid decision) |
 | Tooling | D1 (ESLint TS parser — resolved via a26f800 + M8.18 globals fix; residual D-series lint-debt burn-down ongoing) |
