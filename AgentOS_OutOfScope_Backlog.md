@@ -228,9 +228,8 @@ The stats route exposes counts per origin without auth. Acceptable localhost-onl
 
 **Closure note.** M8 Phase 1 (adversarial regression suite, 8 themes) and Phase 2 (eval harness, 90-case corpus, dashboard) built this session; CI matrix + standalone distribution landed. Adversarial suite found **zero** product vulns in M0–M7 — all invariants held. Items below are scoped-out follow-ups.
 
-**M8-1 — MCP tool-description sanitizer does not exist (MEDIUM).**
-Tool/manifest description strings read from CLI output or manifest YAML are surfaced without HTML-entity escaping. The `javascript:`-URL slice is closed (`hermesMcp.ts` now allowlists `http:`/`https:` for the manifest `source` field), but a full sanitizer (HTML-escape descriptions before render, allowlist auth types) is not built. M8.3 regression tests are `skip`-marked with the upgrade path documented. Risk today is low (descriptions displayed as-is, not executed/rendered as HTML).
-→ **Home: M8+ / when MCP descriptions are rendered in richer UI.**
+**M8-1 — MCP tool-description sanitizer — ✅ RESOLVED (MEDIUM pass, 2026-07-21).**
+`sanitizeDescription()` in `hermesMcp.ts` strips HTML tags + C0/C1 control chars, collapses whitespace, caps at 400 chars (text-only neutralization — no entity-escaping, React JSX escapes at render). Applied at both untrusted read sites: `listCatalog()` CLI table slice and `loadManifest()` manifest description. `extractAuth()` now enforces `VALID_AUTH_TYPES` allowlist (`api_key`/`oauth`/`none`; invalid → undefined). M8.3 regression test un-skipped with real assertions.
 
 **M8-2 — Live eval runner is a guarded stub (deferred by design).**
 `evalRunner.ts` fixture mode is the CI-default deterministic baseline ($0, no network). Live mode is guarded on `AGENTOS_EVAL_LIVE=1` and throws a "not yet implemented" stub — the real live-agent orchestration call is not wired. Hybrid design was the approved decision; live path lands when the orchestration layer is ready.
@@ -316,9 +315,9 @@ SQLite uses whole-DB write lock. If two routes call promoteMemory(id) simultaneo
 Memory row deleted by one request; promote request tries demote rollback on non-existent row. demoteMemory silently succeeds (UPDATE affects 0 rows, no error). Memory stays promoted in DB (row gone). Orphaned audit entries. Mitigation: add EXISTS check in rollback; handle "row deleted" as explicit error.
 → **Home: concurrent-worker milestone / transaction wrapping.**
 
-**R3-O8 — Resident context pagination missing (MEDIUM).**
-listResidentMemories (jarvisMemory) and getResidentContext (memoryStore) have no LIMIT clause or default to unbounded. If resident context grows to millions, every agent retrieval is expensive. Mitigation: add required pagination (LIMIT + OFFSET or cursor); document memory budget per retrieval.
-→ **Home: R4 memory performance optimization.**
+**R3-O8 — Resident context pagination — ✅ RESOLVED (MEDIUM pass, 2026-07-21).**
+`getResidentContext()` paginated: `{limit, offset}` options, default limit 200, hard cap 1000, negative/NaN clamped in-store (SQLite `LIMIT -1` is unbounded — defense in depth, not route-only). New `getMemoryById()` gives promote route O(1) lookup unaffected by pagination. `GET /api/memory/resident` accepts validated `?limit=&offset=` (non-integer/negative → 400, oversize clamped). jarvisMemory.listResidentMemories already had `limit=50` default.
+Residual (LOW, → concurrent-worker milestone): demote path does not explicitly 404 a missing row — `demoteMemory` UPDATE on absent id surfaces as 500, inconsistent with promote's 404 (verifier note, adjacent to R3-O7).
 
 ### Query & Search Performance
 
@@ -433,8 +432,8 @@ Lint 0 errors, full vitest green, tsc clean; no hardcoded tokens anywhere; nothi
 | Severity | Items |
 |---|---|
 | HIGH | H7 (no egress tap — inherent) |
-| MEDIUM | H9 (Chrome cross-platform), H10 (DPAPI unverified), H14 (OTLP temporality), M8-1 (MCP description sanitizer), M8-5 (exit-gate needs real CI), M8-6 (Windows native unproven), R3-O4 (schema evolution), R3-O8 (pagination missing), X5 (radar x-post route) |
-| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix) |
+| MEDIUM | H9 (Chrome cross-platform), H10 (DPAPI unverified), H14 (OTLP temporality), M8-5 (exit-gate needs real CI), M8-6 (Windows native unproven), R3-O4 (schema evolution), X5 (radar x-post route) |
+| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass) |
 | LOW | H3, H4, H5, H6, H8, H11, H12, H13, M5-1..M5-7, M6-1..M6-7, M7-1..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
 | Deferred by design | M8-2 (live eval runner — hybrid decision) |
 | Tooling | D1 (ESLint TS parser — resolved via a26f800 + M8.18 globals fix; residual D-series lint-debt burn-down ongoing) |

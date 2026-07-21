@@ -211,15 +211,42 @@ export function searchMemory(
   }
 }
 
-export function getResidentContext(): Memory[] {
+export interface GetResidentContextOptions {
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
+export function getResidentContext(opts?: GetResidentContextOptions): Memory[] {
+  // Defense in depth: negative LIMIT means "unbounded" in SQLite, which would
+  // silently reintroduce the R3-O8 unbounded query. Clamp regardless of caller.
+  const rawLimit = opts?.limit;
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(Math.max(Math.floor(rawLimit as number), 0), 1000)
+    : 200;
+  const rawOffset = opts?.offset;
+  const offset = Number.isFinite(rawOffset)
+    ? Math.max(Math.floor(rawOffset as number), 0)
+    : 0;
+
   const db = openDb();
   try {
     const rows = db.prepare(`
       SELECT * FROM memory
       WHERE origin = 'human' OR promoted_by IS NOT NULL
       ORDER BY created_at DESC
-    `).all() as Record<string, unknown>[];
+      LIMIT ? OFFSET ?
+    `).all(limit, offset) as Record<string, unknown>[];
     return rows.map(rowToMemory);
+  } finally {
+    db.close();
+  }
+}
+
+export function getMemoryById(id: string): Memory | null {
+  const db = openDb();
+  try {
+    const row = db.prepare("SELECT * FROM memory WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    return row ? rowToMemory(row) : null;
   } finally {
     db.close();
   }

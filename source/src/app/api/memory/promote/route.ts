@@ -54,22 +54,16 @@ export async function POST(req: NextRequest) {
     // DB promote second: if vault succeeds but promote fails, vault entry orphaned but
     // acceptable (human consent already recorded in vault write).
 
-    // Get memory content for vault write (needed early)
+    // Get memory content for vault write (needed early). Lookup is O(1) via direct DB query,
+    // unaffected by pagination, and works for both resident and quarantined memories.
     let resident;
     try {
-      resident = memoryStore.getResidentContext().find((m) => m.id === id);
-      // Check if memory exists at all (quarantined or resident)
+      resident = memoryStore.getMemoryById(id);
       if (!resident) {
-        // Check quarantined to distinguish "not found" from "not resident"
-        const quarantined = memoryStore.listQuarantined();
-        if (!quarantined.find((m) => m.id === id)) {
-          return NextResponse.json(
-            { ok: false, error: "Memory not found" },
-            { status: 404 }
-          );
-        }
-        // Get the full quarantined memory for vault write
-        resident = quarantined.find((m) => m.id === id)!;
+        return NextResponse.json(
+          { ok: false, error: "Memory not found" },
+          { status: 404 }
+        );
       }
     } catch (err) {
       return NextResponse.json(

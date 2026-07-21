@@ -16,6 +16,34 @@ import path from "node:path";
 import yaml from "js-yaml";
 import { run } from "@/lib/runner";
 
+// ─── Security: Description and Auth Sanitization ─────────────────────────────
+// Descriptions come from untrusted sources (CLI output, manifest YAML).
+// Strip HTML tags, control chars, and normalize whitespace.
+// NOTE: NOT entity-escaping here — React JSX escapes text at render time;
+// entity-escaping here would double-escape in the UI.
+export function sanitizeDescription(text: string): string {
+  if (typeof text !== "string") return "";
+  // Strip HTML tags
+  let clean = text.replace(/<[^>]*>/g, "");
+  // Collapse runs of whitespace to single spaces (before stripping control chars,
+  // so that multiple newlines become a single space)
+  clean = clean.replace(/\s+/g, " ");
+  // Strip C0/C1 control characters
+  // eslint-disable-next-line no-control-regex
+  clean = clean.replace(/[\x00-\x1f\x7f-\x9f]/g, "");
+  // Trim
+  clean = clean.trim();
+  // Cap at 400 chars
+  if (clean.length > 400) {
+    clean = clean.slice(0, 400);
+  }
+  return clean;
+}
+
+// Allowlist of valid auth types. Extend to match legitimately observed values
+// in manifests and code. Invalid values → undefined/"none".
+const VALID_AUTH_TYPES = new Set(["api_key", "oauth", "none"]);
+
 export interface CatalogEntry {
   name: string;
   status: "available" | "installed" | "installed (disabled)" | "enabled" | string;
@@ -71,12 +99,20 @@ async function readManifest(name: string): Promise<ManifestData | null> {
 
 // Normalise auth into a flat shape. Manifests can declare `auth: oauth` (string
 // shorthand) OR `auth: { type: oauth, provider: google }` (object form).
+// Apply allowlist validation: only return recognized auth types.
 function extractAuth(authField: unknown): { type?: string; provider?: string } {
   if (!authField) return {};
-  if (typeof authField === "string") return { type: authField };
+  if (typeof authField === "string") {
+    const type = VALID_AUTH_TYPES.has(authField) ? authField : undefined;
+    return { type };
+  }
   if (typeof authField === "object") {
     const a = authField as Record<string, unknown>;
-    const type = typeof a["type"] === "string" ? (a["type"] as string) : undefined;
+    let type = typeof a["type"] === "string" ? (a["type"] as string) : undefined;
+    // Apply allowlist: only return recognized types
+    if (type && !VALID_AUTH_TYPES.has(type)) {
+      type = undefined;
+    }
     const provider = typeof a["provider"] === "string" ? (a["provider"] as string) : undefined;
     return { type, provider };
   }
@@ -125,7 +161,7 @@ export async function listCatalog(): Promise<CatalogEntry[]> {
     const [nStart, sStart, dStart] = absOffsets;
     const name = ln.slice(nStart, sStart).trim();
     const status = ln.slice(sStart, dStart).trim();
-    const description = ln.slice(dStart).trim();
+    const description = sanitizeDescription(ln.slice(dStart).trim());
     if (!name) continue;
     rows.push({ name, status, description });
   }
@@ -324,7 +360,7 @@ export async function loadManifest(name: string): Promise<ManifestSummary | null
 
   return {
     name,
-    description: typeof m.description === "string" ? m.description : undefined,
+    description: typeof m.description === "string" ? sanitizeDescription(m.description) : undefined,
     source: typeof m.source === "string" ? m.source : undefined,
     manifestVersion: typeof m.manifest_version === "number" ? m.manifest_version : undefined,
     transportType: m.transport?.type,
