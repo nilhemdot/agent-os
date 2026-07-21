@@ -2,20 +2,18 @@
 // remote/same-origin clips down to a project's assets/ dir so the HyperFrames
 // renderer (which reads from disk) can stitch them.
 
-import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
-
-const FFPROBE_PATH = (process.env.PATH ?? "") + ":/opt/homebrew/bin:/usr/local/bin:/usr/bin";
+import { spawnSubprocess } from "@/lib/runner";
 
 // Probe a media file's duration in seconds via ffprobe. Returns null if ffprobe
 // is unavailable or the file can't be read — callers fall back to estimates.
 export function probeDuration(absPath: string): Promise<number | null> {
   return new Promise((resolve) => {
     let out = "";
-    const child = spawn("ffprobe", [
+    const child = spawnSubprocess("ffprobe", [
       "-v", "error", "-show_entries", "format=duration",
       "-of", "default=noprint_wrappers=1:nokey=1", absPath,
-    ], { env: { ...process.env, PATH: FFPROBE_PATH }, stdio: ["ignore", "pipe", "ignore"] });
+    ], { stdio: ["ignore", "pipe", "ignore"] });
     const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch {} resolve(null); }, 15_000);
     child.stdout.on("data", (d) => { out += String(d); });
     child.on("close", () => {

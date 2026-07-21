@@ -29,22 +29,20 @@ Last updated: 2026-07-18 (backfill pass).
 
 ## 2. Deferred hardening — env / secret leakage
 
-**H1 — `...process.env` spread in non-agent subprocesses (MEDIUM).**
-Full parent env (incl. `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) leaks to child tools that bypass the validated runner:
-`seo/deploy/route.ts:94`, `opendesign/control/route.ts:18`, `thumbnails/generate/route.ts:48`, `seo/research/route.ts:54`, `claudeArtifacts.ts:129`, `hermesPhone.ts:135`, `videoAuto.ts:18`, `notebooklmClient.ts:17`.
-Not agent-execution paths (so not an M0 regression), but they bypass the credential broker's minimal-env allowlist.
-→ **Home: M3 credential-broker follow-up.**
+**H1 — `...process.env` spread in non-agent subprocesses — ✅ RESOLVED (H1 hotfix, 2026-07-21).**
+Route-level sites fixed by R1 (7c2c314, spawnSubprocess minimal env). Residual lib sites
+(`videoAuto.ts`, `notebooklmClient.ts`, `hermesPhone.ts` brew + cloudflared tunnel,
+`claudeArtifacts.ts` netlify) migrated to `spawnSubprocess`/`agentEnv` with per-tool extras
+(HOMEBREW_* flags, NETLIFY_AUTH_TOKEN passthrough, NOTEBOOKLM_*/AGENTIC_OS_NLM_* passthrough).
+Guarded by `h1-env-leakage.test.ts` (no `...process.env` spread, no raw `spawn` import in H1 modules).
 
-**H2 — `opendesign/control/route.ts:18` `exec(bash …)` with full env, outside runner validation (MEDIUM).**
-Shell path with full env inheritance. Verify `script` is not attacker-controlled.
-→ **Home: M3 follow-up / R1.**
+**H2 — `opendesign/control/route.ts` `exec(bash …)` — ✅ RESOLVED in R1 (7c2c314).**
+Shell invocation removed; `spawnSubprocessSync` with array args + minimal env (PATH only).
 
-**R1 — Runner chokepoint is partial: ~25 files import `node:child_process` directly (HIGH).**
-Firewall/broker/canary/sandbox/redaction protect ONLY agents launched via `runner.ts::prepareRun`. 12 of the 25 importers are under `src/app`/`src/features`. The §4.2 invariant ("no `features/**`/`app/**` may import `node:child_process`, enforce with ESLint `no-restricted-imports`, fail CI") is specified but NOT enforced.
-- ESLint rule authored but **blocked**: `config-protection` PreToolUse hook forbids editing `eslint.config.mjs`. Rule ready to paste once hook lifted.
-- ESLint itself is also broken independently (no TS parser wired — see D1).
-- None of the 25 currently spawn an *agent* session (they're ffmpeg/netlify/python/open/etc.), so no numbered M3 item is invalidated — but it is the largest residual attack surface in M3's domain.
-→ **Home: M3 follow-up — (a) lift config-protection hook + add rule, (b) migrate the 12 app/features spawns onto the runner.**
+**R1 — Runner chokepoint partial — ✅ RESOLVED (7c2c314).**
+All `src/app`/`src/features` `child_process` imports migrated onto the runner; ESLint
+`no-restricted-imports` rule live in `eslint.config.mjs` (§4.2 invariant enforced). Verified
+2026-07-21: zero direct importers under app/features.
 
 ---
 
@@ -434,8 +432,9 @@ Lint 0 errors, full vitest green, tsc clean; no hardcoded tokens anywhere; nothi
 
 | Severity | Items |
 |---|---|
-| HIGH | R1 (runner chokepoint partial), H7 (no egress tap — inherent) |
-| MEDIUM | H1, H2 (env leakage), H9 (Chrome cross-platform), H10 (DPAPI unverified), H14 (OTLP temporality), M8-1 (MCP description sanitizer), M8-5 (exit-gate needs real CI), M8-6 (Windows native unproven), R3-O4 (schema evolution), R3-O8 (pagination missing), X5 (radar x-post route) |
+| HIGH | H7 (no egress tap — inherent) |
+| MEDIUM | H9 (Chrome cross-platform), H10 (DPAPI unverified), H14 (OTLP temporality), M8-1 (MCP description sanitizer), M8-5 (exit-gate needs real CI), M8-6 (Windows native unproven), R3-O4 (schema evolution), R3-O8 (pagination missing), X5 (radar x-post route) |
+| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix) |
 | LOW | H3, H4, H5, H6, H8, H11, H12, H13, M5-1..M5-7, M6-1..M6-7, M7-1..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
 | Deferred by design | M8-2 (live eval runner — hybrid decision) |
 | Tooling | D1 (ESLint TS parser — resolved via a26f800 + M8.18 globals fix; residual D-series lint-debt burn-down ongoing) |

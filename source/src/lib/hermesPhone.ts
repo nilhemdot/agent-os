@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { hermesHome } from "@/lib/config";
-import { spawn, execSync } from "node:child_process";
+import { execSync } from "node:child_process";
+import { spawnSubprocess } from "@/lib/runner";
 import path from "node:path";
 import os from "node:os";
 
@@ -93,7 +94,7 @@ export async function startTunnel(): Promise<{ url: string | null; error?: strin
     try { execSync("pkill -f 'cloudflared tunnel --url'"); } catch {}
   }
   try { writeFileSync(TUNNEL_LOG, ""); } catch {}
-  const child = spawn(bin, ["tunnel", "--url", `http://localhost:${API_PORT}`], {
+  const child = spawnSubprocess(bin, ["tunnel", "--url", `http://localhost:${API_PORT}`], {
     detached: true,
     stdio: ["ignore", (await import("node:fs")).openSync(TUNNEL_LOG, "a"), (await import("node:fs")).openSync(TUNNEL_LOG, "a")],
   });
@@ -130,10 +131,10 @@ export function installCloudflared(): { state: "present" | "installing" | "start
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- sync file API for install log
   const fs = require("node:fs") as typeof import("node:fs");
   const out = fs.openSync(INSTALL_LOG, "a");
-  const child = spawn(brew, ["install", "cloudflared"], {
+  const child = spawnSubprocess(brew, ["install", "cloudflared"], {
     detached: true,
     stdio: ["ignore", out, out],
-    env: { ...process.env, HOMEBREW_NO_AUTO_UPDATE: "1", HOMEBREW_NO_INSTALL_CLEANUP: "1", HOMEBREW_NO_ENV_HINTS: "1" },
+    env: { HOMEBREW_NO_AUTO_UPDATE: "1", HOMEBREW_NO_INSTALL_CLEANUP: "1", HOMEBREW_NO_ENV_HINTS: "1" },
   });
   child.unref();
   return { state: "started" };

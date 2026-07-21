@@ -5,6 +5,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { config } from "@/lib/config";
+import { agentEnv } from "@/lib/runner";
 
 // Resolve to THIS user's own install — config handles env var → config.json
 // nlmBin → `which notebooklm-mcp` → common locations. Bare "notebooklm-mcp" is
@@ -14,7 +15,12 @@ const NLM_BIN = config.nlmBin || "notebooklm-mcp";
 let clientPromise: Promise<Client> | null = null;
 
 function makeClient(): Promise<Client> {
-  const env: Record<string, string> = { ...process.env } as Record<string, string>;
+  // H1: minimal env (no API keys) + the tool's own NOTEBOOKLM_* / AGENTIC_OS_NLM_* config vars.
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(agentEnv())) if (v !== undefined) env[k] = v;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v !== undefined && (k.startsWith("NOTEBOOKLM_") || k.startsWith("AGENTIC_OS_NLM_"))) env[k] = v;
+  }
   const transport = new StdioClientTransport({ command: NLM_BIN, args: [], env });
   const client = new Client({ name: "agentic-os", version: "0.2.0" });
   return client.connect(transport).then(() => client);

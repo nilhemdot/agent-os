@@ -5,9 +5,9 @@
 
 import { readFile, writeFile, mkdir, readdir, stat, rm } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
-import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
+import { spawnSubprocess } from "@/lib/runner";
 
 const HOME = os.homedir();
 export const PUBLISHED_DIR = path.join(HOME, ".agentic-os", "published");
@@ -15,8 +15,9 @@ const MANIFEST = path.join(PUBLISHED_DIR, "manifest.json");
 const LOOP_BUILDS = path.join(HOME, ".agentic-os", "loop-builds");
 const CLAUDE_PROJECTS = path.join(HOME, ".agentic-os", "claude-projects");
 
-// netlify CLI needs a real PATH when the dev server was launched detached.
-const DEPLOY_PATH = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", path.join(HOME, ".local/bin"), process.env.PATH || ""].filter(Boolean).join(":");
+// H1: netlify auth comes from ~/.netlify (HOME is in the minimal env) or this token if set.
+const NETLIFY_TOKEN_ENV = (): Record<string, string> =>
+  process.env.NETLIFY_AUTH_TOKEN ? { NETLIFY_AUTH_TOKEN: process.env.NETLIFY_AUTH_TOKEN } : {};
 
 export interface ArtifactSite { siteId: string; name: string; baseUrl: string }
 export function artifactSite(): ArtifactSite | null {
@@ -125,8 +126,8 @@ function deploy(): Promise<{ ok: boolean; log: string }> {
   const site = artifactSite();
   return new Promise((resolve) => {
     if (!site) return resolve({ ok: false, log: "no artifacts site configured" });
-    const child = spawn("netlify", ["deploy", "--prod", "--dir", PUBLISHED_DIR, "--site", site.siteId, "--no-build"],
-      { env: { ...process.env, PATH: DEPLOY_PATH }, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnSubprocess("netlify", ["deploy", "--prod", "--dir", PUBLISHED_DIR, "--site", site.siteId, "--no-build"],
+      { env: NETLIFY_TOKEN_ENV(), stdio: ["ignore", "pipe", "pipe"] });
     let log = "";
     const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch {} resolve({ ok: false, log: log + "\n[deploy timeout]" }); }, 180_000);
     child.stdout.on("data", (d) => { log += String(d); });
