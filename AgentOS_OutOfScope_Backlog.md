@@ -80,9 +80,8 @@ Canary/secret is caught in stdout/stderr, OTLP body, and post-run workspace diff
 M3.8's artifact scan reduced to a workspace scan (where a leak would land anyway). If artifact manifests are meant to exist, that's separate wiring.
 → **Home: M5 (artifact/evidence linking).**
 
-**H9 — `loop/run` `findChrome()` only searches the macOS Playwright path (MEDIUM on non-mac).**
-On Linux/WSL the binary is never found → `renderCheck` always returns `"unavailable"` → every HTML Loop build fails closed. Correct security posture, but effectively disables visual builds on WSL. Needs cross-platform Chromium lookup.
-→ **Home: M8 cross-platform matrix.**
+**H9 — `loop/run` `findChrome()` macOS-only path — ✅ RESOLVED (424d2e6, 2026-07-21).**
+`findChrome()` now searches all platform Playwright cache roots (linux/WSL `~/.cache/ms-playwright`, macOS, Windows `LOCALAPPDATA`), honors `PLAYWRIGHT_BROWSERS_PATH` first (ignoring the `0` hermetic sentinel), and matches the `.exe` binary variant. `chromeSearchBases()` exported; `h9-chrome-lookup.test.ts` pins the contract. renderCheck on WSL now finds the binary once `npx playwright install chromium-headless-shell` has run.
 
 **H10 — DPAPI interop unverified end-to-end on this host (MEDIUM, blocking M3.4 sign-off).**
 Broker assumes `/mnt/c/.../powershell.exe` is callable from WSL. If `[interop] enabled=false` in `/etc/wsl.conf`, DPAPI probe silently fails → falls to libsecret → if no D-Bus, refuses all secret storage (fail-safe, but broker unusable). Run one `storeSecret`/`loadSecret` round-trip on the target machine before declaring M3.4 done.
@@ -243,13 +242,12 @@ The 90 corpus cases use procedurally-varied fixture metrics, not recorded real r
 `/eval` renders per-case and per-category baseline with variance, but the per-case table is unpaginated (fine at 90, add pagination past ~100), has no CSV export, and shows a point-in-time baseline with no historical trend. Add when the corpus or run-history grows.
 → **Home: backlog (when corpus/run volume grows).**
 
-**M8-5 — M8.15 exit gate is only partially verifiable from a single dev box (MEDIUM, process).**
-"Fresh install on all three OSes → verified diff on a real issue in <15 min" can only be confirmed by real GitHub Actions runs on `ubuntu/macos/windows-latest` with cold caches — not from this WSL box (warm Turbopack cache, single OS, faster/slower hardware differs). The CI matrix (`.github/workflows/ci.yml`) makes it checkable; actual sign-off requires pushing the branch and observing the first matrix run's per-OS duration and green status.
-→ **Home: M8.15 sign-off — push branch, observe real CI matrix.**
+**M8-5 — M8.15 exit gate CI observation — ✅ RESOLVED (2026-07-21, runs 29817508393/29817836767/29818017018).**
+Real GitHub Actions matrix observed across three main pushes: **ubuntu green 56s–1m1s, macos green 1m15s–1m36s** on every run (cold-cache, typecheck + lint + R1.4 security lints + 349-test suite + eval). Well inside the <15 min exit-gate budget. Two CI-infra bugs found and fixed en route: windows pwsh could not parse the bash-array R1.4 step (fixed: job-level `defaults.run.shell: bash`, 424d2e6) and node.exe could not `require()` the bash-only `/tmp` eslint output path (fixed: workspace-relative file, ba79b2c).
 
-**M8-6 — Windows native `node:sqlite` + Turbopack unproven; WSL2 is the documented fallback (MEDIUM on Windows).**
-`node:sqlite` (experimental, Node 22.5+) and the Turbopack build have not been exercised on native `windows-latest`. The CI matrix keeps Windows in with `fail-fast: false`; per Plan v3 §M8, shipping WSL2 as the supported Windows path is an acceptable answer if native doesn't go green. Confirm on the first real Windows CI run before claiming native Windows support.
-→ **Home: M8.15 sign-off / Windows CI observation.**
+**M8-6 — Windows native support — ⚖ DECIDED: WSL2 is the supported Windows path (2026-07-21, run 29818017018).**
+With CI infra fixed, native `windows-latest` reaches the test suite: typecheck, lint, and both R1.4 security lints green — but **10 test failures, all in git/path-sensitive suites** (`m6-restore` ×1, `m6-checkpoints` ×3, `m5-diff-capture` ×4, `m3-security` ×2): the CRLF/worktree/path-separator class this item predicted. `node:sqlite` itself loads (suite runs). Per Plan v3 §M8, WSL2 ships as the supported Windows path; the job stays in the matrix as `continue-on-error` telemetry.
+Residual (LOW, → windows-native milestone if ever prioritized): triage the 10 m3/m5/m6 failures for CRLF/path-sep assumptions.
 
 **M8-7 — Repo-wide ESLint debt; CI lint step is non-blocking (D-series, LOW).**
 The eslint flat-config globals gap (only React/JSX declared) was fixed this session so `console`/`process`/browser/vitest no longer false-positive as `no-undef`, and all files added M7/M8 are lint-clean. Residual real debt remains in pre-existing files (unused-vars, `explicit-any`, `require`-imports across `src/components/**`, `scripts/x.mjs`, `search/route.ts`, `x-api.test.ts`). The CI `lint` step is `continue-on-error: true` so the M8 matrix gates on typecheck/test/eval; a full burn-down is the ongoing D-series effort, not an M8 exit criterion.
@@ -432,8 +430,8 @@ Lint 0 errors, full vitest green, tsc clean; no hardcoded tokens anywhere; nothi
 | Severity | Items |
 |---|---|
 | HIGH | H7 (no egress tap — inherent) |
-| MEDIUM | H9 (Chrome cross-platform), H10 (DPAPI unverified), H14 (OTLP temporality), M8-5 (exit-gate needs real CI), M8-6 (Windows native unproven), R3-O4 (schema evolution), X5 (radar x-post route) |
-| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass) |
+| MEDIUM | H10 (DPAPI unverified), H14 (OTLP temporality), R3-O4 (schema evolution), X5 (radar x-post route) |
+| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass), H9 (424d2e6), M8-5 (CI matrix observed 2026-07-21), M8-6 (decided: WSL2 supported path) |
 | LOW | H3, H4, H5, H6, H8, H11, H12, H13, M5-1..M5-7, M6-1..M6-7, M7-1..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
 | Deferred by design | M8-2 (live eval runner — hybrid decision) |
 | Tooling | D1 (ESLint TS parser — resolved via a26f800 + M8.18 globals fix; residual D-series lint-debt burn-down ongoing) |
