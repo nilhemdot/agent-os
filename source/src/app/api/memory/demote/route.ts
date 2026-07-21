@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { demoteMemory } from "@/lib/memoryStore";
+import { demoteMemory, getMemoryById } from "@/lib/memoryStore";
 import * as vaultWriter from "@/lib/vaultWriter";
 
 export const runtime = "nodejs";
@@ -44,6 +44,15 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { ok: false, error: "invalid id format" } as ApiResponse<never>,
         { status: 400 }
+      );
+    }
+
+    // R3-O8 residual: explicit 404 on missing id (parity with promote route)
+    // instead of a 500 from demoting a non-existent row.
+    if (!getMemoryById(id)) {
+      return NextResponse.json(
+        { ok: false, error: "Memory not found" } as ApiResponse<never>,
+        { status: 404 }
       );
     }
 

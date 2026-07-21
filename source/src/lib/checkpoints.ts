@@ -41,7 +41,9 @@ export function isGitWorkspace(cwd: string): boolean {
 
 export function isWorkingTreeDirty(cwd: string): boolean {
   const r = git(cwd, ["status", "--porcelain"]);
-  if (!okc(r)) return false; // ponytail: can't determine → not dirty; every mutating verb re-checks via git itself
+  // M5-1: fail CLOSED — can't determine → treat as dirty so in-place restore
+  // refuses instead of clobbering unknown state; `force` is the escape hatch.
+  if (!okc(r)) return true;
   return (r.stdout || "").trim().length > 0;
 }
 
@@ -244,7 +246,7 @@ export function forkFromCheckpoint(runId: string, checkpointId?: string): VerbRe
     return { ok: true, runId: child.id, parentRunId: runId, path: newDir, checkpointId: cp.id };
   }
   if (!isGitWorkspace(cwd)) return NOT_GIT;
-  if (!okc(git(cwd, ["worktree", "add", "--detach", newDir, cp.git_sha]))) return { ok: false, code: 409, error: "git worktree add failed" };
+  if (!okc(git(cwd, ["worktree", "add", "--detach", "--", newDir, cp.git_sha]))) return { ok: false, code: 409, error: "git worktree add failed" };
   const child = createRun({
     agent: run.agent, objective: run.objective, workspace: newDir,
     args: safeJson<string[]>(run.args_json, []), policy: safeJson<unknown>(run.policy_json, {}), parentRunId: runId,
@@ -287,7 +289,7 @@ export function restoreCheckpoint(
   if (!opts.inPlace) {
     const newDir = `${cwd.replace(/\/+$/, "")}-restore-${randomUUID().slice(0, 8)}`;
     if (existsSync(newDir)) return { ok: false, code: 409, error: "restore target already exists" };
-    if (!okc(git(cwd, ["worktree", "add", "--detach", newDir, cp.git_sha]))) return { ok: false, code: 409, error: "git worktree add failed" };
+    if (!okc(git(cwd, ["worktree", "add", "--detach", "--", newDir, cp.git_sha]))) return { ok: false, code: 409, error: "git worktree add failed" };
     appendRunEvent(runId, "restored", { mode: "worktree", path: newDir, checkpointId: cp.id });
     return { ok: true, mode: "worktree", path: newDir, checkpointId: cp.id };
   }

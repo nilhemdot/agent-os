@@ -137,13 +137,11 @@ Codex-added `eslint.config.mjs` matches `**/*.ts,tsx` with default espree parser
 
 **Closure note.** M5 closed 2026-07-13; M6 core (git-ref checkpoints, worktree-first restore, retry/fork/restore verbs) pulled forward into M5 by user decision.
 
-**M5-1 — `isWorkingTreeDirty` fails open when `git status` errors (`checkpoints.ts:44`) (LOW).**
-Unreachable via UI (destructive path always sends force). Flip to fail-closed during M8 hardening.
-→ **Home: M8 hardening.**
+**M5-1 — `isWorkingTreeDirty` fails open — ✅ RESOLVED (LOW batch 1, 2026-07-21).**
+Now fails CLOSED: git error → treated as dirty → in-place restore 409s; `force` remains the escape hatch. Test pins the polarity (non-git dir → dirty).
 
-**M5-2 — No `--` separator before git positional args (sha/paths) in `checkpoints.ts` (LOW).**
-Defense-in-depth; values are DB-sourced today.
-→ **Home: M8 hardening.**
+**M5-2 — No `--` separator before git positional args — ✅ RESOLVED (LOW batch 1, 2026-07-21).**
+`--` added to both `worktree add --detach` calls (path+commit positionals). `read-tree`/`update-ref` verified: ref/sha-only positionals we generate, no pathspec ambiguity — left as-is by design.
 
 **M5-3 — `hashAction` normalization is shallow (LOW, fails safe).**
 Arrays sorted but not deduped; command hashed as an opaque string (whitespace variants hash differently). Fail-safe: over-prompts, never under-authorizes.
@@ -314,7 +312,7 @@ Memory row deleted by one request; promote request tries demote rollback on non-
 
 **R3-O8 — Resident context pagination — ✅ RESOLVED (MEDIUM pass, 2026-07-21).**
 `getResidentContext()` paginated: `{limit, offset}` options, default limit 200, hard cap 1000, negative/NaN clamped in-store (SQLite `LIMIT -1` is unbounded — defense in depth, not route-only). New `getMemoryById()` gives promote route O(1) lookup unaffected by pagination. `GET /api/memory/resident` accepts validated `?limit=&offset=` (non-integer/negative → 400, oversize clamped). jarvisMemory.listResidentMemories already had `limit=50` default.
-Residual (LOW, → concurrent-worker milestone): demote path does not explicitly 404 a missing row — `demoteMemory` UPDATE on absent id surfaces as 500, inconsistent with promote's 404 (verifier note, adjacent to R3-O7).
+Residual resolved (LOW batch 1, 2026-07-21): demote route now 404s a missing id via `getMemoryById` pre-check, parity with promote.
 
 ### Query & Search Performance
 
