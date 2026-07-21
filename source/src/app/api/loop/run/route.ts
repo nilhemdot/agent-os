@@ -21,23 +21,41 @@ function extractHtml(text: string): string | null {
 }
 
 // Find the Playwright headless-chromium binary (separate from the user's real Chrome).
+// H9: the cache root differs per OS — searching only the macOS path made
+// renderCheck permanently "unavailable" on Linux/WSL/Windows.
+export function chromeSearchBases(): string[] {
+  const bases: string[] = [];
+  const override = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (override && override !== "0") bases.push(override);
+  const home = os.homedir();
+  bases.push(
+    path.join(home, ".cache", "ms-playwright"), // linux / WSL
+    path.join(home, "Library", "Caches", "ms-playwright"), // macOS
+    path.join(process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local"), "ms-playwright"), // windows
+  );
+  return bases;
+}
+const CHROME_BIN_NAMES = ["chrome-headless-shell", "chrome-headless-shell.exe"];
 let _chrome: string | null | undefined;
 function findChrome(): string | null {
   if (_chrome !== undefined) return _chrome;
   _chrome = null;
-  try {
-    const base = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy-load sync fs for binary search
-    const fs = require("node:fs") as typeof import("node:fs");
-    for (const d of fs.readdirSync(base)) {
-      if (!d.startsWith("chromium_headless_shell")) continue;
-      const inner = path.join(base, d);
-      for (const sub of fs.readdirSync(inner)) {
-        const bin = path.join(inner, sub, "chrome-headless-shell");
-        if (existsSync(bin)) { _chrome = bin; return _chrome; }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy-load sync fs for binary search
+  const fs = require("node:fs") as typeof import("node:fs");
+  for (const base of chromeSearchBases()) {
+    try {
+      for (const d of fs.readdirSync(base)) {
+        if (!d.startsWith("chromium_headless_shell")) continue;
+        const inner = path.join(base, d);
+        for (const sub of fs.readdirSync(inner)) {
+          for (const name of CHROME_BIN_NAMES) {
+            const bin = path.join(inner, sub, name);
+            if (existsSync(bin)) { _chrome = bin; return _chrome; }
+          }
+        }
       }
-    }
-  } catch { /* none */ }
+    } catch { /* base absent — try next */ }
+  }
   return _chrome;
 }
 

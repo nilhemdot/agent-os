@@ -18,6 +18,12 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: ['22']
 
+    defaults:
+      run:
+        # windows-latest defaults to pwsh, which cannot parse the bash-array
+        # security-lint steps (R1.4); bash exists on all three runners.
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
 
