@@ -8,10 +8,8 @@ import type { Memory } from "@/lib/memoryStore";
 // ponytail: chars/4 heuristic for token count
 const TOKENS_PER_CHAR = 0.25;
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface ContextWindowViewerProps {}
 
-export default function ContextWindowViewer({}: ContextWindowViewerProps) {
+export default function ContextWindowViewer() {
   const [blocks, setBlocks] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

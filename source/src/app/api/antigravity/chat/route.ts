@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 //
 // Long timeout because the Antigravity harness can spin up subagents + do tool calls
 // for ~30-90s on real tasks. Same shape as our Hermes chat endpoint.
+// eslint-disable-next-line no-control-regex
 const ANSI_STRIP = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\]\d+;[^\x07\x1b]*(\x07|\x1b\\)/g;
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 min
 

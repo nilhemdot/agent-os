@@ -237,7 +237,7 @@ function runOpen(target: string): Promise<boolean> {
       if (!/^https?:\/\/[\w.\-/?=&%#~+:@]+$/i.test(url)) return resolve(false);
       args = [url];
     } else {
-      if (!/^[\w .'&\-]{1,40}$/.test(t)) return resolve(false); // app name only
+      if (!/^[\w .'&-]{1,40}$/.test(t)) return resolve(false); // app name only
       args = ["-a", t];
     }
     try {
@@ -291,6 +291,7 @@ async function agent(prompt: string, history: JarvisMsg[], yolo = false): Promis
   // Approval bypass is opt-in only — never hardcoded (M0 security).
   const unsafeArgs = yolo ? ["--yolo", "--accept-hooks"] : [];
   const out = await run("hermes", ["-z", full, ...unsafeArgs], { cwd: process.cwd(), timeoutMs: 6 * 60 * 1000 });
+  // eslint-disable-next-line no-control-regex
   const text = out.stdout.replace(/\x1b\[[0-9;?]*[a-zA-Z]|\x1b\]\d+;[^\x07\x1b]*(\x07|\x1b\\)/g, "").trim();
   return { ok: out.ok && !!text, text: text || "(no reply — check `hermes status`)", ms: Date.now() - started, mode: "agent", error: text ? undefined : out.stderr.slice(-300) };
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { searchMemory } from "@/lib/memoryStore";
+import { searchMemory, type Memory } from "@/lib/memoryStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +10,8 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+type SearchResult = { readonly trusted: Memory[]; readonly quarantined: Memory[] };
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -18,17 +20,14 @@ export async function GET(req: Request) {
 
     if (!q.trim()) {
       return NextResponse.json(
-        { ok: true, data: { trusted: [], quarantined: [] } } as ApiResponse<{
-          trusted: any[];
-          quarantined: any[];
-        }>,
+        { ok: true, data: { trusted: [], quarantined: [] } } as ApiResponse<SearchResult>,
         { status: 200 }
       );
     }
 
     const result = searchMemory(q, { includeQuarantined });
     return NextResponse.json(
-      { ok: true, data: result } as ApiResponse<typeof result>,
+      { ok: true, data: result } as ApiResponse<SearchResult>,
       { status: 200 }
     );
   } catch (err) {

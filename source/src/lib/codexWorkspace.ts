@@ -116,7 +116,7 @@ async function findSessionFile(id: string): Promise<string | null> {
 
 // Extract anything that looks like an absolute filesystem path from a chunk of
 // text or JSON. Used to pull out file references from tool calls + agent prose.
-const PATH_RE = /(\/[A-Za-z0-9._\-\/]+\.(?:png|jpg|jpeg|webp|gif|svg|avif|mp4|webm|mov|m4v|mp3|wav|m4a|ogg|pdf|html|htm|css|js|jsx|ts|tsx|json|md|txt|csv|py|sh))/g;
+const PATH_RE = /(\/[A-Za-z0-9./_-]+\.(?:png|jpg|jpeg|webp|gif|svg|avif|mp4|webm|mov|m4v|mp3|wav|m4a|ogg|pdf|html|htm|css|js|jsx|ts|tsx|json|md|txt|csv|py|sh))/g;
 function extractPaths(s: string): string[] {
   const out = new Set<string>();
   let m: RegExpExecArray | null;

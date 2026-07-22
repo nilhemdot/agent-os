@@ -18,7 +18,7 @@ export interface GraphNode {
 export interface GraphLink { source: string; target: string; }
 export interface VaultGraph { nodes: GraphNode[]; links: GraphLink[]; }
 
-const WIKILINK_RE = /\[\[([^\[\]\n|#]+)(?:#[^\[\]\n|]+)?(?:\|[^\[\]\n]+)?\]\]/g;
+const WIKILINK_RE = /\[\[([^[\]\n|#]+)(?:#[^[\]\n|]+)?(?:\|[^[\]\n]+)?\]\]/g;
 
 export async function buildVaultGraph(): Promise<VaultGraph> {
   if (!VAULT_ROOT) return { nodes: [], links: [] };

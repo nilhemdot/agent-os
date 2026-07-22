@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 // Strip ALL common ANSI escape sequences (CSI, OSC, simple SGR) — not just `[...m`.
 // Otherwise terminal control codes can eat the reply or leave it looking empty.
+// eslint-disable-next-line no-control-regex
 const ANSI_STRIP = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\]\d+;[^\x07\x1b]*(\x07|\x1b\\)/g;
 
 const TIMEOUT_MS = 6 * 60 * 1000; // 6 min — multi-step agentic tasks (skill invocations, video edits) routinely exceed 2 min.

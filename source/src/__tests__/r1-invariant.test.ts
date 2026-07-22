@@ -104,7 +104,7 @@ describe('R1 — Runner chokepoint invariants', () => {
           content.includes('spawnSubprocess'),
           `${routePath} should use spawnSubprocess`
         ).toBe(true);
-      } catch (e) {
+      } catch {
         // Route file may not exist, that's ok for this test
       }
     }
@@ -127,7 +127,7 @@ describe('R1 — Runner chokepoint invariants', () => {
         content.includes('spawnSubprocess'),
         'seo/deploy should use spawnSubprocess for minimal env'
       ).toBe(true);
-    } catch (e) {
+    } catch {
       // Route may not exist, skip
     }
   });
@@ -154,7 +154,7 @@ describe('R1 — Runner chokepoint invariants', () => {
         content.includes('spawnSubprocessSync'),
         'opendesign/control should use spawnSubprocessSync (no shell)'
       ).toBe(true);
-    } catch (e) {
+    } catch {
       // Route may not exist, skip
     }
   });

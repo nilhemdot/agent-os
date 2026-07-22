@@ -1107,7 +1107,7 @@ function ToolsEditorModal({ name, onClose, onComplete }: { name: string; onClose
   }
   function addTool() {
     const t = newToolName.trim();
-    if (!t || !/^[A-Za-z0-9_.\-]+$/.test(t)) return;
+    if (!t || !/^[A-Za-z0-9_.-]+$/.test(t)) return;
     setTools((cur) => {
       const next = cur ? [...cur] : [];
       if (!next.includes(t)) next.push(t);
@@ -1216,7 +1216,7 @@ function ToolsEditorModal({ name, onClose, onComplete }: { name: string; onClose
                        className="flex-1 px-3 py-1.5 text-[12px] rounded-md border bg-transparent text-[var(--cream)] mono"
                        style={{ borderColor: "var(--line-soft)" }} />
                 <button onClick={addTool}
-                        disabled={!newToolName.trim() || !/^[A-Za-z0-9_.\-]+$/.test(newToolName.trim())}
+                        disabled={!newToolName.trim() || !/^[A-Za-z0-9_.-]+$/.test(newToolName.trim())}
                         className="text-[10px] uppercase tracking-widest px-3 py-1.5 rounded flex items-center gap-1 font-semibold disabled:opacity-40"
                         style={{ color: ACCENT, border: `1px solid ${ACCENT}55`, background: `${ACCENT}14` }}>
                   <Plus size={11} /> Add

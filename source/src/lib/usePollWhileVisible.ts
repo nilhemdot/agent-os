@@ -49,6 +49,5 @@ export function usePollWhileVisible(
       stop();
       document.removeEventListener("visibilitychange", onVisChange);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervalMs, ...deps]);
 }

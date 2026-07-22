@@ -1,20 +1,12 @@
-# Requirements Ledger — LOW batch 2: R3-1 jarvisMemory deletion + R3-4 JSONL
+# LEDGER — LOW batch 3: D1 ESLint wiring, M7-1 FTS5 fallback, H11 cwd isolation
 
-Source: AgentOS_OutOfScope_Backlog.md §12 R3-1, R3-4. Verified: only
-importer of jarvisMemory is r2-memory-provenance.test.ts (route ref is a
-comment). Module is dead production code; deleting it also removes the
-JSONL writer (R3-4).
+- [ ] 1. D1: `source/eslint.config.mjs` currently parses TS with default espree → 428 parse errors. Wire `eslint-config-next` via `@eslint/eslintrc` FlatCompat so `npm run lint` runs clean (both packages already installed). Note: `config-protection` hook guards this file — if hook blocks edit, report to user instead of bypassing.
+- [ ] 2. D1: after parser works, add R1 `no-restricted-imports` rule (see backlog R1 context — restrict direct imports the R1 refactor banned; if R1 rule spec unclear from repo, implement lint wiring only and flag rule for follow-up).
+- [ ] 3. M7-1: memory FTS5 search — wrap `MATCH` query in try/catch; on FTS5 parse error (unbalanced quotes, stray operators) fall back to sanitized substring search. Quarantine invariant (no trusted/quarantined mixing) must hold on fallback path.
+- [ ] 4. M7-1: adversarial test — malformed FTS5 queries (`"unbalanced`, `AND OR`, `NEAR(`) return valid results or empty, never throw/500; fallback respects trust-tier filtering.
+- [ ] 5. H11: inspect `kanbanSeo`/`hermesJarvis` `cwd: process.cwd()` usage — if a per-run workspace dir is available in scope, pass it; if not cheaply available, document acceptance in backlog and skip code change.
+- [ ] 6. Quality gates: full vitest green, `tsc --noEmit` clean, `npm run lint` clean (this batch makes lint meaningful — expect and fix newly surfaced lint errors or scope them).
+- [ ] 7. Backlog: mark D1/M7-1 resolved, H11 resolved-or-accepted, update severity roll-up line.
+- [ ] 8. Commit + push (conventional commit, one batch commit).
 
-- [x] 1. Rewrite `r2-memory-provenance.test.ts` against memoryStore +
-      memory.db (temp-DB pattern), preserving every R2 invariant the test
-      documents: schema columns, agent-origin → quarantined, human-origin
-      → trusted, promote gate (user actor only), resident context
-      excludes quarantined.
-- [x] 2. Delete `src/lib/jarvisMemory.ts`. Zero remaining references
-      (grep clean, comment refs updated/kept as history where accurate).
-- [x] 3. R3-4: JSONL writing ends with the module. Existing
-      `~/.agentic-os/jarvis-memory.jsonl` on-disk file untouched
-      (historical artifact; note in backlog).
-- [x] 4. Suite green, tsc clean, eslint clean on touched files.
-- [x] 5. Backlog: R3-1 + R3-4 resolved; roll-up unchanged (LOW).
-- [x] 6. Commit + push.
+Notes: M7-3 accepted per backlog (localhost single-user) — no action this batch. Prior batches archived: LEDGER-m7-memory-archive.md, LEDGER-x-integration-archive.md.

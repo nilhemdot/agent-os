@@ -87,9 +87,8 @@ M3.8's artifact scan reduced to a workspace scan (where a leak would land anyway
 Broker assumes `/mnt/c/.../powershell.exe` is callable from WSL. If `[interop] enabled=false` in `/etc/wsl.conf`, DPAPI probe silently fails → falls to libsecret → if no D-Bus, refuses all secret storage (fail-safe, but broker unusable). Run one `storeSecret`/`loadSecret` round-trip on the target machine before declaring M3.4 done.
 → **Home: M3 sign-off checklist.**
 
-**H11 — `kanbanSeo`/`hermesJarvis` pass `cwd: process.cwd()` (LOW).**
-Server dir, not a per-run workspace. Satisfies `requireWorkspace` (absolute) but not ideal isolation.
-→ **Home: later hardening.**
+**H11 — `kanbanSeo`/`hermesJarvis` pass `cwd: process.cwd()` — ✅ ACCEPTED (LOW batch 3, 2026-07-22).**
+Inspected both call sites (hermesJarvis.ts:293, kanbanSeo.ts:28): external `hermes` CLI launches; per-run workspace dir not cheaply available in scope (would require threading params through internal layers). Accepted under single-user localhost model; revisit if per-run isolation lands for external CLI spawns.
 
 ---
 
@@ -127,9 +126,8 @@ Caps (2000 files / 20 hits / 1MB per file) and the `mtime<start` filter drop con
 
 ## 7. Tooling debt (blocks a clean CI)
 
-**D1 — ESLint is non-functional (no TS parser).**
-Codex-added `eslint.config.mjs` matches `**/*.ts,tsx` with default espree parser → 428 parse errors. `eslint-config-next` + `@eslint/eslintrc` installed but never wired. Blocks R1's `no-restricted-imports` rule from running. `config-protection` hook also guards the file.
-→ **Home: standalone fix — wire `eslint-config-next` flat config (FlatCompat), then add R1 rule.**
+**D1 — ESLint is non-functional (no TS parser) — ✅ RESOLVED (verified stale, 2026-07-22).**
+Entry was stale: `a26f800` + M8.18 globals fix wired `typescript-eslint` (`tseslint.configs.recommended` on `**/*.{ts,tsx}`) — zero parse errors, and the R1.4 `no-restricted-imports` child_process rule is active for `src/app`/`src/features`. Verified 2026-07-22: `npm run lint` → 0 errors, 10 pre-existing react-hooks warnings in components. FlatCompat/`eslint-config-next` rewiring unnecessary (and `config-protection` hook guards the file). Residual D-series lint-debt burn-down: component warnings only.
 
 ---
 
@@ -203,9 +201,8 @@ OS port/spawn timing, not product logic. Serialize the test or add an `allocateP
 
 **Closure note.** M7 closed 2026-07-15 (commits `95d95f5` feature, `858147e` promote-path integrity fix). Trust-tier quarantine, FTS5 search, vault gate, promote/demote audit all verified. A background security review of `95d95f5` surfaced the promote-path double-promotion bug — fixed in `858147e`, not deferred. The items below are the residuals.
 
-**M7-1 — FTS5 MATCH query-syntax robustness (LOW).**
-User-supplied search strings are passed to FTS5 `MATCH` parameterized (no SQL injection), but FTS5 has its own query grammar (`OR`/`AND`/`NEAR`/quoted phrases/column filters). Unbalanced quotes or stray operators can raise a parse error rather than returning empty. Adversarial test (M8.8) confirms quarantine invariant holds and search never silently mixes trusted/quarantined, but a hardened path would wrap the FTS5 query in try/catch and fall back to a sanitized/substring search on parse failure.
-→ **Home: M8+ search hardening / backlog.**
+**M7-1 — FTS5 MATCH query-syntax robustness — ✅ RESOLVED (LOW batch 3, 2026-07-22).**
+`memoryStore.ts` search now wraps the FTS5 `MATCH` in try/catch; on parse error (unbalanced quotes, stray operators, `NEAR(`, column filters) it falls back to a sanitized `LIKE` substring search (`%`/`_` escaped, `ESCAPE '\\'`). Trust-tier/quarantine filtering is applied downstream of id-gathering, so both paths filter identically — verified no fallback leak. New `m7-1-fts5-fallback.test.ts`: 10 adversarial cases incl. quarantine boundary on the fallback path.
 
 **M7-2 — Concurrent promotion race on the same record (LOW, single-user tolerable).**
 Two simultaneous `POST /api/memory/promote` for one id can both succeed; SQLite has no row-level locking and the promote path is not wrapped in a transaction. The `858147e` fix made promotion single-path with vault-failure rollback, but does not serialize concurrent promotions. Acceptable under the localhost single-user threat model; revisit if concurrent writers land.
@@ -426,8 +423,8 @@ Lint 0 errors, full vitest green, tsc clean; no hardcoded tokens anywhere; nothi
 |---|---|
 | HIGH | H7 (no egress tap — inherent) |
 | MEDIUM | H10 (DPAPI unverified), H14 (OTLP temporality), X5 (radar x-post route) |
-| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass), H9 (424d2e6), M8-5 (CI matrix observed 2026-07-21), M8-6 (decided: WSL2 supported path), R3-O4 (2026-07-21 migration framework) |
-| LOW | H3, H4, H5, H6, H8, H11, H12, H13, M5-1..M5-7, M6-1..M6-7, M7-1..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
+| Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass), H9 (424d2e6), M8-5 (CI matrix observed 2026-07-21), M8-6 (decided: WSL2 supported path), R3-O4 (2026-07-21 migration framework), M7-1 (2026-07-22 LOW batch 3), H11 (accepted 2026-07-22), D1 (verified stale 2026-07-22) |
+| LOW | H3, H4, H5, H6, H8, H12, H13, M5-1..M5-7, M6-1..M6-7, M7-2..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
 | Deferred by design | M8-2 (live eval runner — hybrid decision) |
 | Tooling | D1 (ESLint TS parser — resolved via a26f800 + M8.18 globals fix; residual D-series lint-debt burn-down ongoing) |
 

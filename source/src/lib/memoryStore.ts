@@ -118,14 +118,24 @@ export function searchMemory(
   try {
     const matchIds = new Set<string>();
 
-    // FTS5 match
-    const ftsRows = db.prepare(`
-      SELECT DISTINCT m.rowid FROM memory_fts
-      JOIN memory m ON memory_fts.rowid = m.rowid
-      WHERE memory_fts MATCH ?
-    `).all(query) as { rowid: number }[];
-
-    for (const r of ftsRows) matchIds.add(String(r.rowid));
+    // FTS5 match with fallback on parse error
+    try {
+      const ftsRows = db.prepare(`
+        SELECT DISTINCT m.rowid FROM memory_fts
+        JOIN memory m ON memory_fts.rowid = m.rowid
+        WHERE memory_fts MATCH ?
+      `).all(query) as { rowid: number }[];
+      for (const r of ftsRows) matchIds.add(String(r.rowid));
+    } catch {
+      // FTS5 parse error (unbalanced quotes, invalid operators). Fall back to substring search.
+      // ponytail: same trust-tier filtering as FTS5 path; no mixing trusted/quarantined
+      const sanitized = `%${query.replace(/[%_]/g, "\\$&")}%`;
+      const likeRows = db.prepare(`
+        SELECT DISTINCT m.rowid FROM memory m
+        WHERE m.content LIKE ? ESCAPE '\\'
+      `).all(sanitized) as { rowid: number }[];
+      for (const r of likeRows) matchIds.add(String(r.rowid));
+    }
 
     if (matchIds.size === 0) {
       return { trusted: [], quarantined: [] };

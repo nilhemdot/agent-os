@@ -7,6 +7,7 @@ import { mkdir, readdir, stat } from "node:fs/promises";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// eslint-disable-next-line no-control-regex
 const ANSI_STRIP = /\x1b\[[0-9;?]*[a-zA-Z]|\x1b\]\d+;[^\x07\x1b]*(\x07|\x1b\\)/g;
 const TIMEOUT_MS = 6 * 60 * 1000;
 const WORKSPACE = path.join(hermesHome(), "profiles", "local", "workspace");

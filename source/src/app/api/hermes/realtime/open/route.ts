@@ -15,10 +15,10 @@ function runOpen(target: string): Promise<boolean> {
     const looksUrl = /^https?:\/\//i.test(t) || /^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(t);
     if (looksUrl) {
       const url = /^https?:\/\//i.test(t) ? t : `https://${t}`;
-      if (!/^https?:\/\/[\w.\-/?=&%#~+:@]+$/i.test(url)) return resolve(false);
+      if (!/^https?:\/\/[\w.-/?=&%#~+:@]+$/i.test(url)) return resolve(false);
       args = [url];
     } else {
-      if (!/^[\w .'&\-]{1,40}$/.test(t)) return resolve(false); // app name only
+      if (!/^[\w .'&-]{1,40}$/.test(t)) return resolve(false); // app name only
       args = ["-a", t];
     }
     try {
