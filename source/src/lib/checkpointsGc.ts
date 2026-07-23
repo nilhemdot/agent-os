@@ -231,6 +231,15 @@ export interface StorageSummary {
   capped: boolean; // the bounded disk walk hit its cap — `bytes` is a floor, not exact
 }
 
+// M6-6: Module-level cache for storage summary computation (60s TTL)
+// ponytail: repeated /runs loads spawnSync git per call; cache for cheap re-use.
+let cached: { value: StorageSummary; at: number } | null = null;
+const CACHE_TTL_MS = 60_000;
+
+function isCacheValid(): boolean {
+  return cached !== null && Date.now() - cached.at < CACHE_TTL_MS;
+}
+
 // Sibling fork/restore dirs of a base workspace that still exist on disk.
 function siblingWorktrees(base: string): string[] {
   const parent = path.dirname(base);
@@ -240,7 +249,8 @@ function siblingWorktrees(base: string): string[] {
   return entries.filter((e) => e.isDirectory() && re.test(e.name)).map((e) => path.join(parent, e.name));
 }
 
-export function checkpointStorageSummary(): StorageSummary {
+// M6-6: Extracted computation for testability; cache wrapper checks TTL.
+function computeStorageSummary(): StorageSummary {
   const db = ledgerDb();
   const bases = new Set<string>();
   for (const r of db.prepare("SELECT DISTINCT workspace FROM runs").all() as Array<{ workspace: string }>) {
@@ -278,4 +288,19 @@ export function checkpointStorageSummary(): StorageSummary {
     { refCount: 0, worktreeCount: 0, bytes: 0 },
   );
   return { workspaces, totals, capped: budget.capped };
+}
+
+// M6-6: Public API with caching; for tests, export computeStorageSummary directly.
+export function checkpointStorageSummary(): StorageSummary {
+  if (isCacheValid()) {
+    return cached!.value;
+  }
+  const value = computeStorageSummary();
+  cached = { value, at: Date.now() };
+  return value;
+}
+
+// M6-6: Test-only reset to bypass TTL (deterministic test execution).
+export function resetStorageCache(): void {
+  cached = null;
 }

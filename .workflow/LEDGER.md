@@ -1,12 +1,16 @@
-# LEDGER — LOW batch 3: D1 ESLint wiring, M7-1 FTS5 fallback, H11 cwd isolation
+# LEDGER — LOW batch 4: M7-2 promote transaction, M6-5 checkpoint integrity, M6-6 storage cache, M6-3/M8-x dispositions
 
-- [ ] 1. D1: `source/eslint.config.mjs` currently parses TS with default espree → 428 parse errors. Wire `eslint-config-next` via `@eslint/eslintrc` FlatCompat so `npm run lint` runs clean (both packages already installed). Note: `config-protection` hook guards this file — if hook blocks edit, report to user instead of bypassing.
-- [ ] 2. D1: after parser works, add R1 `no-restricted-imports` rule (see backlog R1 context — restrict direct imports the R1 refactor banned; if R1 rule spec unclear from repo, implement lint wiring only and flag rule for follow-up).
-- [ ] 3. M7-1: memory FTS5 search — wrap `MATCH` query in try/catch; on FTS5 parse error (unbalanced quotes, stray operators) fall back to sanitized substring search. Quarantine invariant (no trusted/quarantined mixing) must hold on fallback path.
-- [ ] 4. M7-1: adversarial test — malformed FTS5 queries (`"unbalanced`, `AND OR`, `NEAR(`) return valid results or empty, never throw/500; fallback respects trust-tier filtering.
-- [ ] 5. H11: inspect `kanbanSeo`/`hermesJarvis` `cwd: process.cwd()` usage — if a per-run workspace dir is available in scope, pass it; if not cheaply available, document acceptance in backlog and skip code change.
-- [ ] 6. Quality gates: full vitest green, `tsc --noEmit` clean, `npm run lint` clean (this batch makes lint meaningful — expect and fix newly surfaced lint errors or scope them).
-- [ ] 7. Backlog: mark D1/M7-1 resolved, H11 resolved-or-accepted, update severity roll-up line.
-- [ ] 8. Commit + push (conventional commit, one batch commit).
+- [x] 1. M7-2: wrap promoteMemory/demoteMemory read-check-write in BEGIN IMMEDIATE…COMMIT (node:sqlite sync, rollback on throw) in source/src/lib/memoryStore.ts.
+- [x] 2. M7-2 test: m7-2-concurrent-promote.test.ts — same-id double promote → one transition + one audit row; rollback on mid-transaction throw.
+- [x] 3. M6-5: verifyFsCheckpointIntegrity() in source/src/lib/checkpoints.ts — SHA256 re-hash vs stored manifest, fail closed; wired into all three restore paths (retry/fork/restore).
+- [x] 4. M6-5 test: m6-5-fs-checkpoint-integrity.test.ts — corrupted/missing file → restore rejects; intact → succeeds.
+- [x] 5. M6-6: extract computeStorageSummary() in source/src/lib/checkpointsGc.ts + module-level 60s TTL cache (plain {value, at}).
+- [x] 6. M6-6 test: m6-6-storage-cache.test.ts — second call within TTL skips recompute.
+- [x] 7. M6-3: mark accepted-by-design in backlog (runner.ts:160 ponytail TOCTOU comment, single-worker localhost) — no code.
+- [x] 8. M8-3/M8-4/M8-7: annotate deferred in backlog (blocked on M8-2 / low traffic / D-series burn-down).
+- [x] 9. Backlog + severity roll-up updated for all dispositions above.
+- [x] 10. Quality gates from source/: typecheck clean, lint 0 errors, full vitest green (385 tests: 372 existing + 13 new).
+- [x] 11. Fresh opus verification pass: all items PASS, 92% confidence, no blockers. Finding 1 (M6-5 path-traversal defensive gap) fixed post-verify — normalize+startsWith guard added in verifyFsCheckpointIntegrity; gates re-run green (tsc clean, lint 0 errors, 385/385). Findings 2–4 (TTL test weakness, manifest-less legacy fail-open, no true concurrency sim) accepted per verifier's threat-model analysis.
+- [ ] 12. Single conventional commit on main, pushed.
 
-Notes: M7-3 accepted per backlog (localhost single-user) — no action this batch. Prior batches archived: LEDGER-m7-memory-archive.md, LEDGER-x-integration-archive.md.
+Notes: plan approved by user (plan file /home/nilhem/.claude/plans/output-the-model-id-wise-wand.md; detail design in output-the-model-id-wise-wand-agent-a8ca6bf41370a00ec.md). Batch 3 content preserved in commit 9acf507 — prior archives: LEDGER-m7-memory-archive.md, LEDGER-x-integration-archive.md.

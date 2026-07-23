@@ -34,6 +34,30 @@ const okc = (r: ReturnType<typeof git>) => !r.error && r.status === 0;
 
 function safeJson<T>(raw: string, fallback: T): T { try { return JSON.parse(raw) as T; } catch { return fallback; } }
 
+// M6-5: Verify FS checkpoint integrity by re-hashing files against stored manifest.
+// Fails closed with clear error naming the mismatched/missing file.
+function verifyFsCheckpointIntegrity(cp: CheckpointRow): void {
+  if (cp.storage !== "fs" || !cp.manifest_json) return; // git checkpoints have no per-file hashes
+
+  const manifest = safeJson<{ files?: Array<{ path: string; sha256: string }> }>(cp.manifest_json, {});
+  if (!manifest.files || manifest.files.length === 0) return; // no file list to verify
+
+  const root = path.normalize(cp.git_ref) + path.sep;
+  for (const fileEntry of manifest.files) {
+    const filePath = path.normalize(path.join(cp.git_ref, fileEntry.path));
+    if (!filePath.startsWith(root)) {
+      throw new Error(`M6-5 checkpoint integrity: path escapes checkpoint dir in "${cp.id}": ${fileEntry.path}`);
+    }
+    if (!existsSync(filePath)) {
+      throw new Error(`M6-5 checkpoint integrity: missing file in checkpoint "${cp.id}": ${fileEntry.path}`);
+    }
+    const actualHash = sha256File(filePath);
+    if (actualHash !== fileEntry.sha256) {
+      throw new Error(`M6-5 checkpoint integrity: file mismatch in checkpoint "${cp.id}": ${fileEntry.path} (expected ${fileEntry.sha256.slice(0, 8)}, got ${actualHash.slice(0, 8)})`);
+    }
+  }
+}
+
 export function isGitWorkspace(cwd: string): boolean {
   const r = git(cwd, ["rev-parse", "--is-inside-work-tree"]);
   return okc(r) && (r.stdout || "").trim() === "true";
@@ -203,6 +227,12 @@ export function retryFromCheckpoint(runId: string): VerbResult {
   if (isErr(cp)) return isGitWorkspace(cwd) ? cp : NOT_GIT;
   if (workspaceBusy(cwd)) return { ok: false, code: 409, error: "a running run holds this workspace" };
   if (cp.storage === "fs") {
+    // M6-5: verify checkpoint integrity before restore
+    try {
+      verifyFsCheckpointIntegrity(cp);
+    } catch (error) {
+      return { ok: false, code: 409, error: String(error) };
+    }
     // fs reset: clear the tree (honoring ignores) and copy the snapshot back in place.
     clearFsWorkspace(cwd);
     cpSync(cp.git_ref, cwd, { recursive: true, filter: skipFilter });
@@ -236,6 +266,12 @@ export function forkFromCheckpoint(runId: string, checkpointId?: string): VerbRe
   const newDir = `${cwd.replace(/\/+$/, "")}-fork-${randomUUID().slice(0, 8)}`;
   if (existsSync(newDir)) return { ok: false, code: 409, error: "fork target already exists" };
   if (cp.storage === "fs") {
+    // M6-5: verify checkpoint integrity before fork
+    try {
+      verifyFsCheckpointIntegrity(cp);
+    } catch (error) {
+      return { ok: false, code: 409, error: String(error) };
+    }
     cpSync(cp.git_ref, newDir, { recursive: true, filter: skipFilter });
     const child = createRun({
       agent: run.agent, objective: run.objective, workspace: newDir,
@@ -269,6 +305,12 @@ export function restoreCheckpoint(
   if (isErr(cp)) return isGitWorkspace(cwd) ? cp : NOT_GIT;
 
   if (cp.storage === "fs") {
+    // M6-5: verify checkpoint integrity before restore
+    try {
+      verifyFsCheckpointIntegrity(cp);
+    } catch (error) {
+      return { ok: false, code: 409, error: String(error) };
+    }
     if (!opts.inPlace) {
       const newDir = `${cwd.replace(/\/+$/, "")}-restore-${randomUUID().slice(0, 8)}`;
       if (existsSync(newDir)) return { ok: false, code: 409, error: "restore target already exists" };

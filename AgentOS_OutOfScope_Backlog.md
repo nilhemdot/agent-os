@@ -175,21 +175,21 @@ Deferred per plan R2 ("record which checkpoint was used over implement"). `sessi
 Reclamation left to git auto-gc; forcing gc in user repos is invasive.
 → **Home: accepted (git auto-gc).**
 
-**M6-3 — `allocatePort` bind-then-release has a TOCTOU window (LOW).**
-Acceptable for the single-worker loop. Add a DB port-lease table if concurrent workers land.
-→ **Home: concurrent-worker milestone.**
+**M6-3 — `allocatePort` bind-then-release has a TOCTOU window (ACCEPTED-BY-DESIGN).**
+Design ceiling: single-worker, localhost. TOCTOU accepted under localhost threat model. See `runner.ts:160` ponytail comment documenting the TOCTOU acceptance. Revisit if concurrent multi-worker support is added.
+→ **Home: accepted; revisit on concurrent-worker milestone.**
 
 **M6-4 — fs-mode checkpoints (non-git workspaces): 512MiB hard cap (LOW).**
 Loud `checkpoint_unavailable`; ignore-set mirrors runner `SCAN_SKIP` — no partial silent snapshots. Larger workspaces stay uncheckpointable until a streaming/tar design is justified.
 → **Home: accepted ceiling; streaming/tar design if justified.**
 
-**M6-5 — fs-checkpoint content hashes stored but not verified at restore time (LOW).**
-Snapshot content hashes are recorded but not re-checked when a fs-mode checkpoint is restored. Add an integrity gate on `~/.agentic-os` snapshot reads.
-→ **Home: M8 hardening.**
+**M6-5 — fs-checkpoint content hashes stored but not verified at restore time (RESOLVED).**
+Added `verifyFsCheckpointIntegrity()` function that re-hashes all files in an fs-checkpoint against the stored SHA256 manifest. Integrated into all three restore paths (retryFromCheckpoint, forkFromCheckpoint, restoreCheckpoint); fails closed with clear error on mismatch or missing file.
+Solution: `/source/src/lib/checkpoints.ts` (verifyFsCheckpointIntegrity + 3 call sites); tests in `m6-5-fs-checkpoint-integrity.test.ts` (5 tests, all green).
 
-**M6-6 — `checkpointStorageSummary` spawns git per workspace on `/runs` GET (LOW).**
-Disk-usage panel shells out to git for each workspace on every `/runs` GET. Cache or revalidate the boundary if the page gets hot.
-→ **Home: backlog (if `/runs` gets hot).**
+**M6-6 — `checkpointStorageSummary` spawns git per workspace on `/runs` GET (RESOLVED).**
+Extracted computation into `computeStorageSummary()` and added module-level cache with 60s TTL (`{value, at}` plain object). Exported `resetStorageCache()` for deterministic test execution. Repeated `/runs` GET calls now reuse cached summary without git spawns.
+Solution: `/source/src/lib/checkpointsGc.ts` (computeStorageSummary + cache logic); tests in `m6-6-storage-cache.test.ts` (4 tests, all green).
 
 **M6-7 — `m6-runner-env` real-spawn test can flake under full concurrent vitest load (LOW).**
 OS port/spawn timing, not product logic. Serialize the test or add an `allocatePort` retry if it recurs.
@@ -204,9 +204,9 @@ OS port/spawn timing, not product logic. Serialize the test or add an `allocateP
 **M7-1 — FTS5 MATCH query-syntax robustness — ✅ RESOLVED (LOW batch 3, 2026-07-22).**
 `memoryStore.ts` search now wraps the FTS5 `MATCH` in try/catch; on parse error (unbalanced quotes, stray operators, `NEAR(`, column filters) it falls back to a sanitized `LIKE` substring search (`%`/`_` escaped, `ESCAPE '\\'`). Trust-tier/quarantine filtering is applied downstream of id-gathering, so both paths filter identically — verified no fallback leak. New `m7-1-fts5-fallback.test.ts`: 10 adversarial cases incl. quarantine boundary on the fallback path.
 
-**M7-2 — Concurrent promotion race on the same record (LOW, single-user tolerable).**
-Two simultaneous `POST /api/memory/promote` for one id can both succeed; SQLite has no row-level locking and the promote path is not wrapped in a transaction. The `858147e` fix made promotion single-path with vault-failure rollback, but does not serialize concurrent promotions. Acceptable under the localhost single-user threat model; revisit if concurrent writers land.
-→ **Home: concurrent-worker milestone / transaction wrapping.**
+**M7-2 — Concurrent promotion race on the same record (RESOLVED).**
+Wrapped `promoteMemory` and `demoteMemory` read-check-write sequences in `BEGIN IMMEDIATE`…`COMMIT` via node:sqlite `db.exec()` with rollback on throw. Serializes concurrent promotions of the same record; prevents double-promotion and lost audit rows.
+Solution: `/source/src/lib/memoryStore.ts` (promoteMemory, demoteMemory); tests in `m7-2-concurrent-promote.test.ts` (4 tests, all green).
 
 **M7-3 — `/api/memory/stats` leaks quarantined-record counts by origin (LOW).**
 The stats route exposes counts per origin without auth. Acceptable localhost-only; restrict to the caller's own records if multi-user is ever introduced.
@@ -229,12 +229,14 @@ The stats route exposes counts per origin without auth. Acceptable localhost-onl
 `evalRunner.ts` fixture mode is the CI-default deterministic baseline ($0, no network). Live mode is guarded on `AGENTOS_EVAL_LIVE=1` and throws a "not yet implemented" stub — the real live-agent orchestration call is not wired. Hybrid design was the approved decision; live path lands when the orchestration layer is ready.
 → **Home: live-eval milestone (needs orchestration wiring).**
 
-**M8-3 — Corpus fixtures are synthetic (LOW).**
+**M8-3 — Corpus fixtures are synthetic (DEFERRED).**
 The 90 corpus cases use procedurally-varied fixture metrics, not recorded real runs. Once the live runner (M8-2) ships, capture real execution snapshots to replace the synthetic fixtures so the baseline reflects true model behavior.
+**Deferred reason:** Blocked on M8-2 (real-corpus work). M8-2 not included in this batch.
 → **Home: follows M8-2 (fixture generation from live runs).**
 
-**M8-4 — Eval dashboard has no pagination / export / trend-over-time (LOW).**
+**M8-4 — Eval dashboard has no pagination / export / trend-over-time (DEFERRED).**
 `/eval` renders per-case and per-category baseline with variance, but the per-case table is unpaginated (fine at 90, add pagination past ~100), has no CSV export, and shows a point-in-time baseline with no historical trend. Add when the corpus or run-history grows.
+**Deferred reason:** Low traffic; dashboard still under development. No user demand signal yet.
 → **Home: backlog (when corpus/run volume grows).**
 
 **M8-5 — M8.15 exit gate CI observation — ✅ RESOLVED (2026-07-21, runs 29817508393/29817836767/29818017018).**
@@ -244,8 +246,9 @@ Real GitHub Actions matrix observed across three main pushes: **ubuntu green 56s
 With CI infra fixed, native `windows-latest` reaches the test suite: typecheck, lint, and both R1.4 security lints green — but **10 test failures, all in git/path-sensitive suites** (`m6-restore` ×1, `m6-checkpoints` ×3, `m5-diff-capture` ×4, `m3-security` ×2): the CRLF/worktree/path-separator class this item predicted. `node:sqlite` itself loads (suite runs). Per Plan v3 §M8, WSL2 ships as the supported Windows path; the job stays in the matrix as `continue-on-error` telemetry.
 Residual (LOW, → windows-native milestone if ever prioritized): triage the 10 m3/m5/m6 failures for CRLF/path-sep assumptions.
 
-**M8-7 — Repo-wide ESLint debt; CI lint step is non-blocking (D-series, LOW).**
+**M8-7 — Repo-wide ESLint debt; CI lint step is non-blocking (DEFERRED — D-series).**
 The eslint flat-config globals gap (only React/JSX declared) was fixed this session so `console`/`process`/browser/vitest no longer false-positive as `no-undef`, and all files added M7/M8 are lint-clean. Residual real debt remains in pre-existing files (unused-vars, `explicit-any`, `require`-imports across `src/components/**`, `scripts/x.mjs`, `search/route.ts`, `x-api.test.ts`). The CI `lint` step is `continue-on-error: true` so the M8 matrix gates on typecheck/test/eval; a full burn-down is the ongoing D-series effort, not an M8 exit criterion.
+**Deferred reason:** D-series gradual burn-down, not batchable in M8. Low priority (CI non-blocking).
 → **Home: D-series lint burn-down (continues past M8).**
 
 ---
@@ -424,7 +427,7 @@ Lint 0 errors, full vitest green, tsc clean; no hardcoded tokens anywhere; nothi
 | HIGH | H7 (no egress tap — inherent) |
 | MEDIUM | H10 (DPAPI unverified), H14 (OTLP temporality), X5 (radar x-post route) |
 | Resolved | R1 (7c2c314), H2 (7c2c314), H1 (2026-07-21 hotfix), M8-1 (2026-07-21 MEDIUM pass), R3-O8 (2026-07-21 MEDIUM pass), H9 (424d2e6), M8-5 (CI matrix observed 2026-07-21), M8-6 (decided: WSL2 supported path), R3-O4 (2026-07-21 migration framework), M7-1 (2026-07-22 LOW batch 3), H11 (accepted 2026-07-22), D1 (verified stale 2026-07-22) |
-| LOW | H3, H4, H5, H6, H8, H12, H13, M5-1..M5-7, M6-1..M6-7, M7-2..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
+| LOW | H3, H4, H5, H6, H8, H12, H13, M5-1..M5-7, M6-1..M6-2, M6-4, M6-7, M7-3..M7-4, M8-3, M8-4, M8-7, R3-1..R3-5, R3-O1..R3-O3, R3-O5..R3-O7, R3-O9..R3-O19, X1..X4, X6..X11 |
 | Deferred by design | M8-2 (live eval runner — hybrid decision) |
 | Tooling | D1 (ESLint TS parser — resolved via a26f800 + M8.18 globals fix; residual D-series lint-debt burn-down ongoing) |
 

@@ -210,23 +210,32 @@ export function promoteMemory(id: string, actor: string): Memory {
   if (actor !== "user") throw new Error("only 'user' actor allowed");
   const db = openDb();
   try {
-    // ponytail: Spec §4.3 INVARIANT — human-origin memories are always trusted;
-    // promotion is a no-op for them. Detect and guard before DB mutation.
-    const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
-      | { origin: string }
-      | undefined;
-    if (existing?.origin === "human") {
-      throw new Error("human-origin memories cannot be promoted");
-    }
+    // M7-2: Wrap read-check-write in transaction to prevent concurrent promotion races
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      // ponytail: Spec §4.3 INVARIANT — human-origin memories are always trusted;
+      // promotion is a no-op for them. Detect and guard before DB mutation.
+      const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
+        | { origin: string }
+        | undefined;
+      if (existing?.origin === "human") {
+        throw new Error("human-origin memories cannot be promoted");
+      }
 
-    db.prepare("UPDATE memory SET trust = 'trusted', promoted_by = ? WHERE id = ?").run(
-      actor,
-      id
-    );
-    db.prepare(`
-      INSERT INTO memory_audit (memory_id, action, actor, at)
-      VALUES (?, 'promote', ?, ?)
-    `).run(id, actor, new Date().toISOString());
+      db.prepare("UPDATE memory SET trust = 'trusted', promoted_by = ? WHERE id = ?").run(
+        actor,
+        id
+      );
+      db.prepare(`
+        INSERT INTO memory_audit (memory_id, action, actor, at)
+        VALUES (?, 'promote', ?, ?)
+      `).run(id, actor, new Date().toISOString());
+
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      throw err;
+    }
 
     const row = db.prepare("SELECT * FROM memory WHERE id = ?").get(id) as Record<string, unknown>;
     return rowToMemory(row);
@@ -240,20 +249,29 @@ export function demoteMemory(id: string, actor: string): Memory {
   if (actor !== "user") throw new Error("only 'user' actor allowed");
   const db = openDb();
   try {
-    // ponytail: Spec §4.3 INVARIANT — human-origin memories are always trusted;
-    // demotion is forbidden for them. Detect and guard before DB mutation.
-    const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
-      | { origin: string }
-      | undefined;
-    if (existing?.origin === "human") {
-      throw new Error("human-origin memories cannot be demoted");
-    }
+    // M7-2: Wrap read-check-write in transaction to prevent concurrent demotion races
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      // ponytail: Spec §4.3 INVARIANT — human-origin memories are always trusted;
+      // demotion is forbidden for them. Detect and guard before DB mutation.
+      const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
+        | { origin: string }
+        | undefined;
+      if (existing?.origin === "human") {
+        throw new Error("human-origin memories cannot be demoted");
+      }
 
-    db.prepare("UPDATE memory SET trust = 'quarantined', promoted_by = NULL WHERE id = ?").run(id);
-    db.prepare(`
-      INSERT INTO memory_audit (memory_id, action, actor, at)
-      VALUES (?, 'demote', ?, ?)
-    `).run(id, actor, new Date().toISOString());
+      db.prepare("UPDATE memory SET trust = 'quarantined', promoted_by = NULL WHERE id = ?").run(id);
+      db.prepare(`
+        INSERT INTO memory_audit (memory_id, action, actor, at)
+        VALUES (?, 'demote', ?, ?)
+      `).run(id, actor, new Date().toISOString());
+
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      throw err;
+    }
 
     const row = db.prepare("SELECT * FROM memory WHERE id = ?").get(id) as Record<string, unknown>;
     return rowToMemory(row);
@@ -289,6 +307,19 @@ export function memoryStats(): MemoryStats {
     for (const r of trustRows) byTrust[r.trust] = r.c;
 
     return { total, by_tier: byTier, by_origin: byOrigin, by_trust: byTrust };
+  } finally {
+    db.close();
+  }
+}
+
+// ─── Test-only helpers ─────────────────────────────────────────────────────
+export function getAuditCount(memoryId: string, action?: string): number {
+  const db = openDb();
+  try {
+    if (action) {
+      return (db.prepare("SELECT COUNT(*) as c FROM memory_audit WHERE memory_id = ? AND action = ?").get(memoryId, action) as { c: number }).c;
+    }
+    return (db.prepare("SELECT COUNT(*) as c FROM memory_audit WHERE memory_id = ?").get(memoryId) as { c: number }).c;
   } finally {
     db.close();
   }
