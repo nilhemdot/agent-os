@@ -13,6 +13,10 @@ function memoryDbPath(): string {
 
 function openDb(): DatabaseSync {
   const db = new DatabaseSync(memoryDbPath());
+  // Each promote/demote opens its own connection and takes BEGIN IMMEDIATE, so a
+  // concurrent writer would otherwise fail instantly with SQLITE_BUSY instead of
+  // waiting for the lock and hitting the already-promoted guard. Matches ledgerDb().
+  db.exec("PRAGMA busy_timeout=5000;");
   runMigrations(db);
   return db;
 }

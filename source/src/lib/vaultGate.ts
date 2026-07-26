@@ -73,7 +73,13 @@ export async function promoteToVault(
 
     return { ok: true, path: res.path, data: mem };
   } catch (err) {
-    try { memoryStore.demoteMemory(id, actor); } catch { /* already unpromoted */ }
+    // Same reasoning as the rollback above: "row gone" is the state we wanted, but a
+    // DB/IO failure here leaves the row promoted with no vault entry. Surface it.
+    try {
+      memoryStore.demoteMemory(id, actor);
+    } catch (rollbackErr) {
+      console.warn("[vault] promotion rollback failed:", id, rollbackErr);
+    }
     return { ok: false, error: String(err) };
   }
 }
