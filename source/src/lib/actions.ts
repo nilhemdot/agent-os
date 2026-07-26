@@ -45,17 +45,20 @@ export interface ActionView {
   scope: GrantScope | null; expires_at: string | null; created_at: string;
 }
 
-// Canonical hash of the normalized request. Arrays are sorted so a pure reorder of
+// Canonical hash of the normalized request. Arrays are sorted and deduped so a pure reorder of
 // the same path/secret set is not treated as a modification, but any change to the
 // command, the set of paths/secrets, the network dest, reversibility, or the policy
 // rule changes the hash — and thus invalidates a prior approval.
 export function hashAction(a: NormalizedAction): string {
+  // ponytail: dedupe arrays and collapse command whitespace for stable hashing
+  const deduped = (arr: string[]) => [...new Set([...(arr ?? [])].sort())];
+  const normalizeCmd = (cmd: string) => cmd.trim().replace(/\s+/g, " ");
   const canonical = JSON.stringify({
     tool: a.tool,
-    command: a.command,
-    affectedPaths: [...(a.affectedPaths ?? [])].sort(),
+    command: normalizeCmd(a.command),
+    affectedPaths: deduped(a.affectedPaths ?? []),
     networkDest: a.networkDest ?? null,
-    secretsRequested: [...(a.secretsRequested ?? [])].sort(),
+    secretsRequested: deduped(a.secretsRequested ?? []),
     reversible: !!a.reversible,
     policyRule: a.policyRule ?? null,
   });

@@ -12,6 +12,7 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 
 function files(root: string): Map<string, { sha256: string; content: string }> {
   const found = new Map<string, { sha256: string; content: string }>();
+  const dirManifests = new Map<string, string>();
   const add = (full: string) => {
     const stat = lstatSync(full);
     if (stat.isSymbolicLink()) {
@@ -19,7 +20,11 @@ function files(root: string): Map<string, { sha256: string; content: string }> {
       found.set(relative, { content, sha256: hash(content) }); return;
     }
     if (stat.isDirectory()) {
-      for (const name of readdirSync(full).slice(0, 200)) add(path.join(full, name));
+      const entries = readdirSync(full);
+      // ponytail: hash manifest of ALL entry names+count (not just first 200) so additions beyond 200 still trip diff
+      const manifestHash = hash(JSON.stringify({ names: entries.sort(), count: entries.length }));
+      dirManifests.set(full, manifestHash);
+      for (const name of entries.slice(0, 200)) add(path.join(full, name));
       return;
     }
     if (!stat.isFile()) return;
@@ -28,6 +33,11 @@ function files(root: string): Map<string, { sha256: string; content: string }> {
     found.set(relative, { content, sha256: createHash("sha256").update(bytes).digest("hex") });
   };
   for (const relative of guarded) { const full = path.join(root, relative); if (existsSync(full)) add(full); }
+  // Include manifest hashes in the baseline so directory changes beyond 200 entries still trip diff
+  for (const [dir, manifestHash] of dirManifests) {
+    const relative = path.relative(root, dir);
+    found.set(`${relative}/.manifest`, { content: `manifest of ${relative}`, sha256: manifestHash });
+  }
   return found;
 }
 

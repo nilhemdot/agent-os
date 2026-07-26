@@ -3,6 +3,8 @@ import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import type { NormalizedAction } from "./actions";
+import { hashAction } from "./actions";
 
 export type RunStatus = "queued" | "running" | "completed" | "failed" | "worker_lost";
 export interface RunRow {
@@ -155,7 +157,55 @@ const migrations = [
    CREATE INDEX memory_promoted_by ON memory(promoted_by);`,
 ];
 
+// M5-3 data migration: rehash action_requests and approvals after hashAction()
+// normalization changed (whitespace collapse, array deduplication).
+// Runs once as schema_migrations version 10.
+export function rehashApprovals(db: DatabaseSync): number {
+  const version = 10;
+  // Check if already run
+  const exists = db.prepare("SELECT 1 FROM schema_migrations WHERE version=?").get(version);
+  if (exists) return 0;
+
+  let skipped = 0;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    // Recompute request_hash for all action_requests by deserializing normalized_json
+    const rows = db.prepare("SELECT id, normalized_json FROM action_requests").all() as Array<{ id: string; normalized_json: string }>;
+    for (const row of rows) {
+      try {
+        const action = JSON.parse(row.normalized_json) as NormalizedAction;
+        const newHash = hashAction(action);
+        db.prepare("UPDATE action_requests SET request_hash=? WHERE id=?").run(newHash, row.id);
+      } catch {
+        // Row with unparseable normalized_json is left untouched (fail-safe)
+        skipped++;
+      }
+    }
+
+    // Update all approvals.grant_hash to match their corresponding action_requests.request_hash
+    db.prepare(
+      `UPDATE approvals
+       SET grant_hash = (SELECT request_hash FROM action_requests WHERE id = approvals.action_request_id)`
+    ).run();
+
+    // Mark version 10 as complete
+    db.prepare("INSERT INTO schema_migrations(version) VALUES (?)").run(version);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  return skipped;
+}
+
 let singleton: DatabaseSync | undefined;
+
+// Test-only: reset singleton to force fresh database initialization
+export function __resetLedgerDb(): void {
+  singleton = undefined;
+}
+
 export function ledgerDb(): DatabaseSync {
   if (singleton) return singleton;
   const file = process.env.AGENTOS_DB_PATH || path.join(os.homedir(), ".agentic-os", "agentos.db");
@@ -173,6 +223,13 @@ export function ledgerDb(): DatabaseSync {
     }
     catch (error) { db.exec("ROLLBACK"); throw error; }
   });
+  // M5-3 data migration: rehash after normalization changes
+  try {
+    rehashApprovals(db);
+  } catch (error) {
+    console.error("M5-3 rehash migration failed", error);
+    throw error;
+  }
   singleton = db;
   return db;
 }

@@ -239,10 +239,20 @@ const SCAN_MAX_BYTES = 1_000_000;
 // disk during the run. mtime>=run-start covers both git and non-git workspaces
 // (superset of `git diff`). Bounded by file count + per-file size.
 // ponytail: mtime walk instead of `git diff` — strictly a superset, one code path.
-export function scanWorkspaceForSecrets(cwd: string, sinceMs: number, values: string[]): string[] {
+export interface ScanResult {
+  readonly hits: string[];
+  readonly truncated?: {
+    files?: boolean;
+    hits?: boolean;
+    sizeSkipped?: number;
+  };
+}
+
+export function scanWorkspaceForSecrets(cwd: string, sinceMs: number, values: string[]): string[] | ScanResult {
   if (!values.length) return [];
   const hits: string[] = [];
   let budget = SCAN_MAX_FILES;
+  let budgetExhausted = false, hitsExhausted = false, sizeSkipped = 0;
   const walk = (dir: string) => {
     let entries: string[];
     try { entries = readdirSync(dir); } catch { return; }
@@ -253,14 +263,30 @@ export function scanWorkspaceForSecrets(cwd: string, sinceMs: number, values: st
       let stat: ReturnType<typeof statSync>;
       try { stat = statSync(full); } catch { continue; }
       if (stat.isDirectory()) { walk(full); continue; }
-      if (!stat.isFile() || stat.mtimeMs < sinceMs || stat.size > SCAN_MAX_BYTES) continue;
+      if (!stat.isFile()) continue;
+      if (stat.mtimeMs < sinceMs) continue; // intentional filter, not a truncation cap
+      if (stat.size > SCAN_MAX_BYTES) { sizeSkipped++; continue; }
       budget--;
+      if (budget < 0) { budgetExhausted = true; return; }
       let text: string;
       try { text = readFileSync(full, "utf8"); } catch { continue; }
-      if (containsSecret(text, values)) hits.push(path.relative(cwd, full));
+      if (containsSecret(text, values)) {
+        hits.push(path.relative(cwd, full));
+        if (hits.length >= 20) { hitsExhausted = true; return; }
+      }
     }
   };
   walk(cwd);
+  // ponytail: additive truncation signal — callers receiving string[] still work (legacy compat);
+  // new code expects ScanResult with truncated flag when caps are hit
+  if (budgetExhausted || hitsExhausted || sizeSkipped > 0) {
+    const truncated: ScanResult["truncated"] = {};
+    if (budgetExhausted) truncated.files = true;
+    if (hitsExhausted) truncated.hits = true;
+    if (sizeSkipped > 0) truncated.sizeSkipped = sizeSkipped;
+    console.warn("[scan] workspace secret scan truncated:", truncated);
+    return { hits, truncated };
+  }
   return hits;
 }
 
@@ -463,7 +489,12 @@ function finishRun(runId: string, agent: AgentName, code: number | null, stdout:
   const native = nativeCheckpointEvent(agent, usage.externalRunId);
   if (native) appendRunEvent(runId, "native_checkpoint", native);
   // Post-run: scan files the run wrote for canary + secret-value variants (M3.8/M3.12).
-  const leaked = scanWorkspaceForSecrets(cwd, startedMs, secrets);
+  const scanResult = scanWorkspaceForSecrets(cwd, startedMs, secrets);
+  const leaked = Array.isArray(scanResult) ? scanResult : scanResult.hits;
+  // Record truncation durably regardless of hits (security_alert only if hits found).
+  if (!Array.isArray(scanResult) && scanResult.truncated) {
+    appendRunEvent(runId, "scan_incomplete", { reason: "secret_scan_truncated", truncated: scanResult.truncated });
+  }
   if (leaked.length) { appendRunEvent(runId, "security_alert", { kind: "secret_in_artifact", files: leaked }); tripRun(runId, "secret_in_artifact"); }
   // M5.1: capture redacted diff hunks as artifacts (additive to the scan above).
   captureGitDiff(runId, cwd, secrets);

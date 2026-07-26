@@ -114,13 +114,11 @@ Delta math assumes Claude Code exports cumulative counters (OTLP default; runner
 `runSecretValues` map is populated in `prepareRun` and read by the OTLP receiver — but only same-process. Route-spawned agents (`spawnStream` in the Next.js process) leave the worker-process receiver without the runId → falls back to canary-only value matching. Mitigated: OTLP body never persisted (only byte length), `OTEL_LOG_TOOL_DETAILS` suppressed at source, canary always caught cross-process. In-process stdout/stderr redaction unaffected.
 → **Home: M8 hardening (or shared secret-value store if worker/next split persists).**
 
-**LOW-2 — `scanWorkspaceForSecrets` caps are silent (LOW).**
-Caps (2000 files / 20 hits / 1MB per file) and the `mtime<start` filter drop content with no telemetry. A secret in a >1MB file, beyond the 2000-file budget, or with a backdated mtime is missed by the artifact path with no signal (stdout/OTLP paths still apply). Emit a log/event when a cap truncates the scan.
-→ **Home: M8.**
+**LOW-2 — `scanWorkspaceForSecrets` caps are silent — ✅ RESOLVED (LOW batch 5, 2026-07-23).**
+Added ScanResult type with truncated signal: `{ hits, truncated?: { files?, hits?, sizeSkipped? } }`. Emits console.warn when file budget (2000), hit cap (20), or size cap (1MB) triggers. mtime<start filter remains silent (intentional, not a cap). Backward compat: callers expecting string[] still work (array-only results returned when no caps hit).
 
-**LOW-3 — Config-firewall directory recursion caps at 200 entries (LOW).**
-`configFirewall.ts:22 slice(0,200)` — a `.claude/hooks` dir with >200 files could hide the 201st from the baseline. Raise cap or hash a manifest of names+count so additions past 200 still trip.
-→ **Home: M8.**
+**LOW-3 — Config-firewall directory recursion caps at 200 entries — ✅ RESOLVED (LOW batch 5, 2026-07-23).**
+Manifest hash of ALL entry names + count added to baseline (line 24-29 in configFirewall.ts). Entries beyond 200-per-file cap are now reflected in manifest, so additions past 200 still trip diff. Synthetic `.manifest` entry stores the hash. Test: 201st file addition detected in baseline.
 
 ---
 
@@ -141,9 +139,8 @@ Now fails CLOSED: git error → treated as dirty → in-place restore 409s; `for
 **M5-2 — No `--` separator before git positional args — ✅ RESOLVED (LOW batch 1, 2026-07-21).**
 `--` added to both `worktree add --detach` calls (path+commit positionals). `read-tree`/`update-ref` verified: ref/sha-only positionals we generate, no pathspec ambiguity — left as-is by design.
 
-**M5-3 — `hashAction` normalization is shallow (LOW, fails safe).**
-Arrays sorted but not deduped; command hashed as an opaque string (whitespace variants hash differently). Fail-safe: over-prompts, never under-authorizes.
-→ **Home: backlog.**
+**M5-3 — `hashAction` normalization is shallow — ✅ RESOLVED (LOW batch 5, 2026-07-23).**
+Sorted arrays now deduped (line 62: `[...new Set([...])]`). Command whitespace collapsed (line 61: `.trim().replace(/\s+/g, " ")`). Tradeoff: existing hashes change → one-time re-prompt churn, acceptable (fail-safe, never under-authorizes). Test: `"git  status"` and `"git status"` hash identically; duplicates collapse.
 
 **M5-4 — `listTriage` recency window (20) can hide an old pending-approval run (LOW).**
 Push the pending filter into the SQL `WHERE` when run volume grows.
@@ -300,13 +297,11 @@ memory_fts virtual table kept in sync via triggers. If trigger fails or is disab
 
 ### Concurrency & Race Conditions
 
-**R3-O6 — No row-level locking (LOW, single-user tolerable).**
-SQLite uses whole-DB write lock. If two routes call promoteMemory(id) simultaneously, both see initial state (promoted_by=NULL), both issue UPDATE, first wins. Audit records both. Data loss: second promotion silently overwrites first. Acceptable under localhost single-user; revisit for concurrent writers.
-→ **Home: concurrent-worker milestone / transaction wrapping.**
+**R3-O6 — No row-level locking — ✅ RESOLVED (LOW batch 5, 2026-07-23).**
+BEGIN IMMEDIATE wrapping in promoteMemory (line 214) serializes concurrent writers. Added promoted_by guard (line 225) to reject already-promoted rows, preventing duplicate audit entries. Test: second promote throws "already promoted".
 
-**R3-O7 — Concurrent promote + delete race (LOW, single-user tolerable).**
-Memory row deleted by one request; promote request tries demote rollback on non-existent row. demoteMemory silently succeeds (UPDATE affects 0 rows, no error). Memory stays promoted in DB (row gone). Orphaned audit entries. Mitigation: add EXISTS check in rollback; handle "row deleted" as explicit error.
-→ **Home: concurrent-worker milestone / transaction wrapping.**
+**R3-O7 — Concurrent promote + delete race — ✅ RESOLVED (LOW batch 5, 2026-07-23).**
+promoteMemory/demoteMemory now check row existence (line 218) and return explicit "not found" error if row is absent. UPDATE .changes check (line 236) detects 0-affected-rows and throws "row deleted", preventing orphaned audit entries (transaction rolls back). Test: demote/promote of nonexistent id throws explicit error.
 
 **R3-O8 — Resident context pagination — ✅ RESOLVED (MEDIUM pass, 2026-07-21).**
 `getResidentContext()` paginated: `{limit, offset}` options, default limit 200, hard cap 1000, negative/NaN clamped in-store (SQLite `LIMIT -1` is unbounded — defense in depth, not route-only). New `getMemoryById()` gives promote route O(1) lookup unaffected by pagination. `GET /api/memory/resident` accepts validated `?limit=&offset=` (non-integer/negative → 400, oversize clamped). jarvisMemory.listResidentMemories already had `limit=50` default.

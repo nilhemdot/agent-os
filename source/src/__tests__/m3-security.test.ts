@@ -88,12 +88,18 @@ describe("M3 security gate", () => {
     const canary = canaryForRun("run-artifact");
     const since = Date.now();
     writeFileSync(path.join(workspace, "leak.txt"), `exfil attempt: ${Buffer.from(canary).toString("base64")}`);
-    expect(scanWorkspaceForSecrets(workspace, since - 1_000, [canary])).toContain("leak.txt");
+    const result1 = scanWorkspaceForSecrets(workspace, since - 1_000, [canary]);
+    const hits1 = Array.isArray(result1) ? result1 : result1.hits;
+    expect(hits1).toContain("leak.txt");
     // node_modules is skipped and pre-existing (old mtime) files are ignored.
     mkdirSync(path.join(workspace, "node_modules"));
     writeFileSync(path.join(workspace, "node_modules", "dep.txt"), canary);
-    expect(scanWorkspaceForSecrets(workspace, since - 1_000, [canary])).not.toContain(path.join("node_modules", "dep.txt"));
-    expect(scanWorkspaceForSecrets(workspace, Date.now() + 60_000, [canary])).toEqual([]);
+    const result2 = scanWorkspaceForSecrets(workspace, since - 1_000, [canary]);
+    const hits2 = Array.isArray(result2) ? result2 : result2.hits;
+    expect(hits2).not.toContain(path.join("node_modules", "dep.txt"));
+    const result3 = scanWorkspaceForSecrets(workspace, Date.now() + 60_000, [canary]);
+    const hits3 = Array.isArray(result3) ? result3 : result3.hits;
+    expect(hits3).toEqual([]);
   });
 
   it("detects secret-value variants the OTLP receiver scans for (M3.7)", () => {

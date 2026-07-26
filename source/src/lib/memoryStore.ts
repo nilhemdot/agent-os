@@ -215,30 +215,43 @@ export function promoteMemory(id: string, actor: string): Memory {
     try {
       // ponytail: Spec §4.3 INVARIANT — human-origin memories are always trusted;
       // promotion is a no-op for them. Detect and guard before DB mutation.
-      const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
-        | { origin: string }
+      const existing = db.prepare("SELECT origin, promoted_by FROM memory WHERE id = ?").get(id) as
+        | { origin: string; promoted_by: string | null }
         | undefined;
-      if (existing?.origin === "human") {
+      if (!existing) {
+        throw new Error("memory row not found");
+      }
+      if (existing.origin === "human") {
         throw new Error("human-origin memories cannot be promoted");
       }
+      if (existing.promoted_by !== null) {
+        throw new Error("memory already promoted");
+      }
 
-      db.prepare("UPDATE memory SET trust = 'trusted', promoted_by = ? WHERE id = ?").run(
+      const result = db.prepare("UPDATE memory SET trust = 'trusted', promoted_by = ? WHERE id = ?").run(
         actor,
         id
-      );
+      ) as { changes: number };
+      if (result.changes === 0) {
+        throw new Error("memory row deleted");
+      }
+
       db.prepare(`
         INSERT INTO memory_audit (memory_id, action, actor, at)
         VALUES (?, 'promote', ?, ?)
       `).run(id, actor, new Date().toISOString());
 
+      const row = db.prepare("SELECT * FROM memory WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+      if (!row) {
+        throw new Error(`memory row with id '${id}' not found after update`);
+      }
+
       db.exec("COMMIT");
+      return rowToMemory(row);
     } catch (err) {
       db.exec("ROLLBACK");
       throw err;
     }
-
-    const row = db.prepare("SELECT * FROM memory WHERE id = ?").get(id) as Record<string, unknown>;
-    return rowToMemory(row);
   } finally {
     db.close();
   }
@@ -257,24 +270,34 @@ export function demoteMemory(id: string, actor: string): Memory {
       const existing = db.prepare("SELECT origin FROM memory WHERE id = ?").get(id) as
         | { origin: string }
         | undefined;
-      if (existing?.origin === "human") {
+      if (!existing) {
+        throw new Error("memory row not found");
+      }
+      if (existing.origin === "human") {
         throw new Error("human-origin memories cannot be demoted");
       }
 
-      db.prepare("UPDATE memory SET trust = 'quarantined', promoted_by = NULL WHERE id = ?").run(id);
+      const result = db.prepare("UPDATE memory SET trust = 'quarantined', promoted_by = NULL WHERE id = ?").run(id) as { changes: number };
+      if (result.changes === 0) {
+        throw new Error("memory row deleted");
+      }
+
       db.prepare(`
         INSERT INTO memory_audit (memory_id, action, actor, at)
         VALUES (?, 'demote', ?, ?)
       `).run(id, actor, new Date().toISOString());
 
+      const row = db.prepare("SELECT * FROM memory WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+      if (!row) {
+        throw new Error(`memory row with id '${id}' not found after update`);
+      }
+
       db.exec("COMMIT");
+      return rowToMemory(row);
     } catch (err) {
       db.exec("ROLLBACK");
       throw err;
     }
-
-    const row = db.prepare("SELECT * FROM memory WHERE id = ?").get(id) as Record<string, unknown>;
-    return rowToMemory(row);
   } finally {
     db.close();
   }

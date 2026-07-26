@@ -1,16 +1,29 @@
-# LEDGER — LOW batch 4: M7-2 promote transaction, M6-5 checkpoint integrity, M6-6 storage cache, M6-3/M8-x dispositions
+# LEDGER — LOW batch 5: R3-O6/O7 promote-delete races, LOW-2 scan-cap telemetry, LOW-3 firewall manifest, M5-3 hashAction normalization
 
-- [x] 1. M7-2: wrap promoteMemory/demoteMemory read-check-write in BEGIN IMMEDIATE…COMMIT (node:sqlite sync, rollback on throw) in source/src/lib/memoryStore.ts.
-- [x] 2. M7-2 test: m7-2-concurrent-promote.test.ts — same-id double promote → one transition + one audit row; rollback on mid-transaction throw.
-- [x] 3. M6-5: verifyFsCheckpointIntegrity() in source/src/lib/checkpoints.ts — SHA256 re-hash vs stored manifest, fail closed; wired into all three restore paths (retry/fork/restore).
-- [x] 4. M6-5 test: m6-5-fs-checkpoint-integrity.test.ts — corrupted/missing file → restore rejects; intact → succeeds.
-- [x] 5. M6-6: extract computeStorageSummary() in source/src/lib/checkpointsGc.ts + module-level 60s TTL cache (plain {value, at}).
-- [x] 6. M6-6 test: m6-6-storage-cache.test.ts — second call within TTL skips recompute.
-- [x] 7. M6-3: mark accepted-by-design in backlog (runner.ts:160 ponytail TOCTOU comment, single-worker localhost) — no code.
-- [x] 8. M8-3/M8-4/M8-7: annotate deferred in backlog (blocked on M8-2 / low traffic / D-series burn-down).
-- [x] 9. Backlog + severity roll-up updated for all dispositions above.
-- [x] 10. Quality gates from source/: typecheck clean, lint 0 errors, full vitest green (385 tests: 372 existing + 13 new).
-- [x] 11. Fresh opus verification pass: all items PASS, 92% confidence, no blockers. Finding 1 (M6-5 path-traversal defensive gap) fixed post-verify — normalize+startsWith guard added in verifyFsCheckpointIntegrity; gates re-run green (tsc clean, lint 0 errors, 385/385). Findings 2–4 (TTL test weakness, manifest-less legacy fail-open, no true concurrency sim) accepted per verifier's threat-model analysis.
-- [ ] 12. Single conventional commit on main, pushed.
+- [x] 1. R3-O6: verify premise vs 4cb81b3 — M7-2's BEGIN IMMEDIATE wrap in memoryStore.ts should already serialize double-promote (both-see-initial-state impossible). If confirmed, mark resolved-by-M7-2 in backlog; else fix.
+- [x] 2. R3-O7: demoteMemory (and promote rollback path) must detect 0-affected-rows on deleted memory — explicit "row deleted" error instead of silent success; no orphaned audit row written on missing target.
+- [x] 3. R3-O7 test: delete row then demote → explicit error, no audit row; promote of deleted id → clean error.
+- [x] 4. LOW-2: scanWorkspaceForSecrets (runner.ts) — emit log/event when any cap truncates scan (2000-file budget, 20-hit cap, 1MB per-file skip, mtime<start filter); surface truncation flag in scan result.
+- [x] 5. LOW-2 test: workspace exceeding a cap → truncation signal present; under caps → absent.
+- [x] 6. LOW-3: configFirewall.ts:22 — replace slice(0,200) blindness: include names+count manifest hash in baseline so entries past cap still trip diff.
+- [x] 7. LOW-3 test: 201st file added → baseline diff trips.
+- [x] 8. M5-3: hashAction (actions.ts) — dedupe sorted arrays + collapse command whitespace before hashing. Note: changes existing hashes → one-time re-prompt churn, fail-safe, acceptable.
+- [x] 9. M5-3 test: whitespace variants + duplicate array entries hash identically; distinct commands still differ.
+- [x] 10. Backlog updated: R3-O6 disposition, R3-O7/LOW-2/LOW-3/M5-3 resolved; severity roll-up consistent.
+- [x] 11. Quality gates from source/: typecheck clean, lint 0 errors, full vitest green (385 existing + new).
+- [x] 12. Fresh opus verification pass (race semantics, truncation-signal correctness, hash-migration fallout) before commit.
+- [x] 13. Single conventional commit on main, pushed.
 
-Notes: plan approved by user (plan file /home/nilhem/.claude/plans/output-the-model-id-wise-wand.md; detail design in output-the-model-id-wise-wand-agent-a8ca6bf41370a00ec.md). Batch 3 content preserved in commit 9acf507 — prior archives: LEDGER-m7-memory-archive.md, LEDGER-x-integration-archive.md.
+Notes: batch 4 closed at 4cb81b3 (ledger content preserved in git). Scope from AgentOS_OutOfScope_Backlog.md verbatim excerpts pulled 2026-07-23. M5-3 hash-churn tradeoff pre-accepted (fails safe, over-prompts once) — superseded: user elected to migrate, so schema_migrations v10 (rehashApprovals in ledger.ts) recomputes request_hash/grant_hash in place and standing grants survive the upgrade.
+
+Verification findings fixed before commit (3 fresh opus verifiers, one per concern):
+- memoryStore.ts: promote/demote re-read the row AFTER COMMIT, so a concurrent delete surfaced as a bare TypeError via an `as Record<string, unknown>` cast. Read moved inside the transaction; cast replaced with an explicit guard that throws naming the id.
+- runner.ts: finishRun discarded scanWorkspaceForSecrets' truncation flag — a budget-capped scan finding nothing reported clean (fail-open). Now emits a durable `scan_incomplete` run event regardless of hits, mirroring the existing diff_capture_capped pattern. Deliberately does NOT trip the run.
+- m3-security.test.ts: assertions called array methods directly on the `string[] | ScanResult` union; now extract hits explicitly.
+- Tests named "concurrent" only called promote once; renamed to what they verify, with a second sequential call added to actually exercise the already-promoted guard.
+
+Open follow-ups (not batch 5):
+- vaultGate.ts:59 calls demoteMemory as rollback after a vault write succeeds; if demote throws, the two stores diverge.
+- `scan_incomplete` fires on any >1MB file skip, so routine build artifacts will trigger it — consider narrowing the flag to the file-count and hit-count caps and keeping sizeSkipped as a plain count.
+- scanWorkspaceForSecrets' budget guard uses `return` inside the recursive walk, which exits only the current directory level rather than stopping the whole walk.
+- configFirewall.ts `entries.sort()` mutates in place, so directories over 200 entries are now scanned alphabetically rather than in filesystem order (manifest hash still covers all entries).

@@ -13,7 +13,7 @@ afterAll(() => {
 
 describe("M7-2: Transaction-wrapped promotion prevents concurrent race", () => {
   describe("Sequential promotes of same record", () => {
-    it("should transition state exactly once and create exactly one audit row", () => {
+    it("second sequential promote throws with 'already promoted' error", () => {
       // Arrange
       const mem = memoryStore.addMemory({
         tier: "recall",
@@ -23,11 +23,14 @@ describe("M7-2: Transaction-wrapped promotion prevents concurrent race", () => {
       const memId = mem.id;
       expect(mem.trust).toBe("quarantined");
 
-      // Act: promote twice sequentially (simulating race-like pattern)
+      // Act: promote once successfully
       const promoted1 = memoryStore.promoteMemory(memId, "user");
       expect(promoted1.trust).toBe("trusted");
 
-      // Assert: exactly one promote audit row was created
+      // Assert: second sequential promote throws
+      expect(() => memoryStore.promoteMemory(memId, "user")).toThrow("already promoted");
+
+      // Assert: exactly one promote audit row was created (second attempt failed)
       const auditCount = memoryStore.getAuditCount(memId, "promote");
       expect(auditCount).toBe(1);
       const final = memoryStore.getMemoryById(memId);
