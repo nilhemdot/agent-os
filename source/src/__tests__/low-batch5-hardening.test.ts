@@ -99,15 +99,84 @@ describe("LOW-2: truncation telemetry", () => {
     }
   });
 
-  it("returns sizeSkipped counter for large files", () => {
+  it("reports sizeSkipped counter when large files exist and budget exhausted", () => {
     const tmpDir = mkdtempSync(path.join(os.tmpdir(), "low2-scan-large-"));
-    // Create file > 1MB with secret
+    // Create subdirectory with large file
+    mkdirSync(path.join(tmpDir, "largefiles"), { recursive: true });
     const largeContent = Buffer.alloc(2_000_000);
-    largeContent.write("secret_key_12345 ".repeat(100000));
-    writeFileSync(path.join(tmpDir, "large.txt"), largeContent);
+    largeContent.write("data".repeat(500000));
+    writeFileSync(path.join(tmpDir, "largefiles", "large1.txt"), largeContent);
+    writeFileSync(path.join(tmpDir, "largefiles", "large2.txt"), largeContent);
+
+    // Create enough small files to exhaust budget (2000 files)
+    mkdirSync(path.join(tmpDir, "smallfiles"), { recursive: true });
+    for (let i = 0; i < 2100; i++) {
+      writeFileSync(path.join(tmpDir, "smallfiles", `file${i}.txt`), `clean data ${i}`);
+    }
+
     const result = scanWorkspaceForSecrets(tmpDir, Date.now() - 60000, ["secret_key_12345"]);
+    expect(typeof result === "object" && "truncated" in result).toBe(true);
     const scanResult = result as ScanResult;
+    // Should have both file budget exhausted AND size skipped count
+    expect(scanResult.truncated?.files).toBe(true);
     expect(scanResult.truncated?.sizeSkipped).toBeGreaterThan(0);
+  });
+
+  it("stops scanning when file budget is exhausted (Fix 2)", () => {
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), "low2-scan-budget-"));
+    // Create directory structure to test budget exhaustion
+    mkdirSync(path.join(tmpDir, "dir1"), { recursive: true });
+    mkdirSync(path.join(tmpDir, "dir2"), { recursive: true });
+
+    const secret = "secret_budget_test_12345";
+    // Create files WITHOUT the secret so we scan until budget exhaustion (not hits)
+    // SCAN_MAX_FILES = 2000, so create 2500 files total
+    for (let i = 0; i < 1500; i++) {
+      writeFileSync(path.join(tmpDir, "dir1", `file${i}.txt`), `clean data ${i}`);
+    }
+    for (let i = 0; i < 1000; i++) {
+      writeFileSync(path.join(tmpDir, "dir2", `file${i}.txt`), `clean data ${i}`);
+    }
+
+    const result = scanWorkspaceForSecrets(tmpDir, Date.now() - 60000, [secret]);
+    expect(typeof result === "object" && "truncated" in result).toBe(true);
+    const scanResult = result as ScanResult;
+    // Should have file budget exhausted flag (not hits)
+    expect(scanResult.truncated?.files).toBe(true);
+    expect(scanResult.truncated?.hits).toBeUndefined();
+    // Hits should be empty since secret not found
+    expect(scanResult.hits.length).toBe(0);
+  });
+
+  it("does NOT mark scan as truncated for size-skipped files alone (Fix 1 - regression)", () => {
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), "low2-scan-size-only-"));
+    // Create one file > 1MB with a secret
+    const largeContent = Buffer.alloc(2_000_000);
+    largeContent.write("secret_size_only_12345 data");
+    writeFileSync(path.join(tmpDir, "large.txt"), largeContent);
+
+    const result = scanWorkspaceForSecrets(tmpDir, Date.now() - 60000, ["secret_size_only_12345"]);
+    // Result should be string[] (not ScanResult with truncated) because
+    // sizeSkipped alone should not trigger truncation
+    expect(Array.isArray(result)).toBe(true);
+    if (Array.isArray(result)) {
+      expect(result.length).toBe(0); // No hits because file was skipped
+    }
+  });
+
+  it("returns clean result when all files are under caps (Fix 2 - baseline)", () => {
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), "low2-scan-clean-baseline-"));
+    // Create 10 small files without secrets
+    for (let i = 0; i < 10; i++) {
+      writeFileSync(path.join(tmpDir, `file${i}.txt`), `clean data ${i}`);
+    }
+
+    const result = scanWorkspaceForSecrets(tmpDir, Date.now() - 60000, ["nonexistent_secret"]);
+    // Should return string[] with no hits and no truncation
+    expect(Array.isArray(result)).toBe(true);
+    if (Array.isArray(result)) {
+      expect(result.length).toBe(0);
+    }
   });
 });
 

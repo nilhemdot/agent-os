@@ -56,7 +56,18 @@ export async function promoteToVault(
     });
 
     if (!res.ok) {
-      memoryStore.demoteMemory(id, actor); // rollback to keep DB/vault consistent
+      // ponytail: M3-O2 compensation idempotent — if row is already gone (concurrent deletion),
+      // that's the state we wanted anyway. Swallow demotion failure to prevent divergence.
+      try {
+        memoryStore.demoteMemory(id, actor); // rollback to keep DB/vault consistent
+      } catch (rollbackErr) {
+        // Reaching here means promoteMemory already passed the actor and human-origin
+        // guards, so the only reachable throws are "row gone" variants — the end state
+        // rollback wanted. Anything else (DB busy/IO) leaves the row promoted with no
+        // vault entry, so surface it rather than losing the invariant violation.
+        console.warn("[vault] promotion rollback failed:", id, rollbackErr);
+      }
+
       return { ok: false, error: "Vault write failed; promotion rolled back" };
     }
 

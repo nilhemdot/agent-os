@@ -1,29 +1,16 @@
-# LEDGER — LOW batch 5: R3-O6/O7 promote-delete races, LOW-2 scan-cap telemetry, LOW-3 firewall manifest, M5-3 hashAction normalization
+# LEDGER — batch 5 follow-ups (carried from LEDGER-low-batch5-archive.md)
 
-- [x] 1. R3-O6: verify premise vs 4cb81b3 — M7-2's BEGIN IMMEDIATE wrap in memoryStore.ts should already serialize double-promote (both-see-initial-state impossible). If confirmed, mark resolved-by-M7-2 in backlog; else fix.
-- [x] 2. R3-O7: demoteMemory (and promote rollback path) must detect 0-affected-rows on deleted memory — explicit "row deleted" error instead of silent success; no orphaned audit row written on missing target.
-- [x] 3. R3-O7 test: delete row then demote → explicit error, no audit row; promote of deleted id → clean error.
-- [x] 4. LOW-2: scanWorkspaceForSecrets (runner.ts) — emit log/event when any cap truncates scan (2000-file budget, 20-hit cap, 1MB per-file skip, mtime<start filter); surface truncation flag in scan result.
-- [x] 5. LOW-2 test: workspace exceeding a cap → truncation signal present; under caps → absent.
-- [x] 6. LOW-3: configFirewall.ts:22 — replace slice(0,200) blindness: include names+count manifest hash in baseline so entries past cap still trip diff.
-- [x] 7. LOW-3 test: 201st file added → baseline diff trips.
-- [x] 8. M5-3: hashAction (actions.ts) — dedupe sorted arrays + collapse command whitespace before hashing. Note: changes existing hashes → one-time re-prompt churn, fail-safe, acceptable.
-- [x] 9. M5-3 test: whitespace variants + duplicate array entries hash identically; distinct commands still differ.
-- [x] 10. Backlog updated: R3-O6 disposition, R3-O7/LOW-2/LOW-3/M5-3 resolved; severity roll-up consistent.
-- [x] 11. Quality gates from source/: typecheck clean, lint 0 errors, full vitest green (385 existing + new).
-- [x] 12. Fresh opus verification pass (race semantics, truncation-signal correctness, hash-migration fallout) before commit.
-- [x] 13. Single conventional commit on main, pushed.
+- [x] 1. runner.ts: narrow the `scan_incomplete` truncation flag to the real caps (file-count budget, hit-count cap). Keep `sizeSkipped` as a plain count so routine >1MB build artifacts stop firing a security event.
+      Trigger is now `budgetExhausted || hitsExhausted` only. ACCEPTED DEVIATION: when no cap trips, the function returns the plain `hits` array and the sizeSkipped count is dropped rather than surfaced. Surfacing it would return an object whenever any >1MB file is skipped, pushing callers off the legacy array path far more often than today — the compat risk outweighs the lost count. Consequence to know: an oversized file containing a secret is skipped with nothing recording it, same as pre-batch-5 behavior.
+- [x] 2. runner.ts: `scanWorkspaceForSecrets` budget guard uses `return` inside the recursive `walk`, which exits only the current directory level — sibling directories keep walking after the budget is spent. Make it stop the whole walk, with a test proving it halts.
+      Flag checks added at top of `walk`, in the entry loop, and before each recursion, so exhaustion in any branch stops the entire walk. Cap values unchanged.
+- [x] 3. vaultGate.ts:59 — demoteMemory runs as compensation after a vault write already succeeded; if the demote throws, vault and memory store diverge with no recovery path. Decide the approach (write ordering / compensating action / accept-and-detect) and implement.
+      Original framing was partly wrong: in the `!res.ok` branch the vault write FAILED, and the outer catch already swallowed demote errors. Real ordering is promote (committed) → vault write (fallible) → compensate. Chose idempotent compensation. Verified reachability rather than assuming: promoteMemory and demoteMemory carry symmetric `actor !== "user"` and `origin === "human"` guards, so those two throws cannot fire at the rollback site; every reachable throw ("row not found", "row deleted", "not found after update") means the row is gone, which is the state rollback wanted. Residual: a genuine DB error (SQLITE_BUSY/IO) during compensation leaves the row promoted with no vault entry — a blanket catch hid that, so it now logs instead of vanishing.
+- [x] 4. Quality gates from source/: typecheck clean, lint 0 errors, full vitest green (401 baseline).
+      typecheck clean, lint 0 errors / 10 pre-existing warnings, 408/408 passing across 45 files.
 
-Notes: batch 4 closed at 4cb81b3 (ledger content preserved in git). Scope from AgentOS_OutOfScope_Backlog.md verbatim excerpts pulled 2026-07-23. M5-3 hash-churn tradeoff pre-accepted (fails safe, over-prompts once) — superseded: user elected to migrate, so schema_migrations v10 (rehashApprovals in ledger.ts) recomputes request_hash/grant_hash in place and standing grants survive the upgrade.
+Test hygiene noted, not fixed: the new scan tests write ~2100 and ~2500 files plus two 2MB buffers (suite 3.6s → 4.25s), and they `mkdtempSync` without cleanup, so each run leaves temp dirs behind. Worth injecting lowered caps and adding teardown if the suite gets slower.
 
-Verification findings fixed before commit (3 fresh opus verifiers, one per concern):
-- memoryStore.ts: promote/demote re-read the row AFTER COMMIT, so a concurrent delete surfaced as a bare TypeError via an `as Record<string, unknown>` cast. Read moved inside the transaction; cast replaced with an explicit guard that throws naming the id.
-- runner.ts: finishRun discarded scanWorkspaceForSecrets' truncation flag — a budget-capped scan finding nothing reported clean (fail-open). Now emits a durable `scan_incomplete` run event regardless of hits, mirroring the existing diff_capture_capped pattern. Deliberately does NOT trip the run.
-- m3-security.test.ts: assertions called array methods directly on the `string[] | ScanResult` union; now extract hits explicitly.
-- Tests named "concurrent" only called promote once; renamed to what they verify, with a second sequential call added to actually exercise the already-promoted guard.
+Deferred, not scheduled: configFirewall.ts `entries.sort()` mutates in place so directories over 200 entries scan alphabetically rather than in FS order — manifest hash still covers every entry, so drift detection is intact. Documented, no fix planned.
 
-Open follow-ups (not batch 5):
-- vaultGate.ts:59 calls demoteMemory as rollback after a vault write succeeds; if demote throws, the two stores diverge.
-- `scan_incomplete` fires on any >1MB file skip, so routine build artifacts will trigger it — consider narrowing the flag to the file-count and hit-count caps and keeping sizeSkipped as a plain count.
-- scanWorkspaceForSecrets' budget guard uses `return` inside the recursive walk, which exits only the current directory level rather than stopping the whole walk.
-- configFirewall.ts `entries.sort()` mutates in place, so directories over 200 entries are now scanned alphabetically rather than in filesystem order (manifest hash still covers all entries).
+Out of scope for this batch: 6 Dependabot advisories on the default branch (3 high, 2 moderate, 1 low), unrelated to batch 5. Route separately — sonnet for bumps, opus if any forces a Next.js major (see source/AGENTS.md: read node_modules/next/dist/docs/ before framework changes).

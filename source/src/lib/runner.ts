@@ -254,15 +254,21 @@ export function scanWorkspaceForSecrets(cwd: string, sinceMs: number, values: st
   let budget = SCAN_MAX_FILES;
   let budgetExhausted = false, hitsExhausted = false, sizeSkipped = 0;
   const walk = (dir: string) => {
+    // ponytail: if budget or hits exhausted in a sibling branch, stop entire walk
+    if (budgetExhausted || hitsExhausted) return;
     let entries: string[];
     try { entries = readdirSync(dir); } catch { return; }
     for (const name of entries) {
-      if (budget <= 0 || hits.length >= 20) return;
+      if (budgetExhausted || hitsExhausted) return;
       if (SCAN_SKIP.has(name)) continue;
       const full = path.join(dir, name);
       let stat: ReturnType<typeof statSync>;
       try { stat = statSync(full); } catch { continue; }
-      if (stat.isDirectory()) { walk(full); continue; }
+      if (stat.isDirectory()) {
+        if (budgetExhausted || hitsExhausted) return;
+        walk(full);
+        continue;
+      }
       if (!stat.isFile()) continue;
       if (stat.mtimeMs < sinceMs) continue; // intentional filter, not a truncation cap
       if (stat.size > SCAN_MAX_BYTES) { sizeSkipped++; continue; }
@@ -279,7 +285,7 @@ export function scanWorkspaceForSecrets(cwd: string, sinceMs: number, values: st
   walk(cwd);
   // ponytail: additive truncation signal — callers receiving string[] still work (legacy compat);
   // new code expects ScanResult with truncated flag when caps are hit
-  if (budgetExhausted || hitsExhausted || sizeSkipped > 0) {
+  if (budgetExhausted || hitsExhausted) {
     const truncated: ScanResult["truncated"] = {};
     if (budgetExhausted) truncated.files = true;
     if (hitsExhausted) truncated.hits = true;
