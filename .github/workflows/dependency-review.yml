@@ -1,0 +1,53 @@
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: dependency-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
+  npm-audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Visibility only for now: reports known advisories in the full lockfile,
+    # including ones that pre-date the PR. dependency-review is the PR gate.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: source/.nvmrc
+
+      - name: Audit production dependencies
+        working-directory: source
+        run: |
+          # Report only: findings go to the job summary and a warning annotation,
+          # the step never fails. Drop the `|| ...` fallback to make this a gate.
+          if npm audit --omit=dev --audit-level=high > audit.txt; then
+            echo "npm audit: no high or critical advisories" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=npm audit::$(grep -E '^[0-9]+ vulnerabilities' audit.txt || echo 'advisories found') in production dependencies (see job summary)"
+            { echo '## npm audit (production dependencies)'; echo '```'; cat audit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cat audit.txt

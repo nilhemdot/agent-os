@@ -1,0 +1,38 @@
+name: ShellCheck
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.command'
+      - '**.sh'
+      - '.github/workflows/shellcheck.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.command'
+      - '**.sh'
+      - '.github/workflows/shellcheck.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint launcher scripts
+        run: |
+          # The double-click .command launchers are bash scripts; also lint any .sh files.
+          mapfile -d '' FILES < <(git ls-files -z -- '*.command' '*.sh')
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "No shell scripts to check"
+            exit 0
+          fi
+          shellcheck --version
+          shellcheck --shell=bash --severity=warning "${FILES[@]}"

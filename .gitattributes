@@ -1,0 +1,20 @@
+# Normalize line endings; keep LF in the working tree on every OS so the bash
+# launchers and the Windows CI leg see the same bytes as macOS/Linux.
+* text=auto eol=lf
+
+*.command text eol=lf
+*.sh      text eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.mp3 binary
+*.mp4 binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.pb binary
