@@ -24,7 +24,8 @@ export function selectSandbox(agent: AgentName, bin: string, inputArgs: readonly
     const index = Math.max(args.indexOf("--sandbox"), args.indexOf("-s"));
     return { bin, args, sandbox: `codex-landlock:${args[index + 1] || "workspace-write"}` };
   }
-  const srt = spawnSync("sh", ["-c", "command -v srt"], { encoding: "utf8" }).stdout.trim();
+  // stdout is null when `sh` itself cannot be spawned (e.g. Windows) -> treat as "no srt".
+  const srt = (spawnSync("sh", ["-c", "command -v srt"], { encoding: "utf8" }).stdout ?? "").trim();
   // Wrap via argv form (`srt -- <cmd> <args...>`) — no shell-escaping. The child
   // still receives prepareRun's minimal env + canary (env is applied at spawn).
   if (srt && (mode === "auto" || mode === "srt")) return { bin: srt, args: ["--", bin, ...args], sandbox: `srt:${srtVersion(srt)}` };

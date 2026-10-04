@@ -22,9 +22,16 @@ const REF_PREFIX = "refs/agent-os/checkpoints/";
 
 // Minimal, shell-free git env. PATH (to find git) + HOME (git config / identity) + no prompts.
 // GIT_INDEX_FILE is layered per-call for the temporary-index snapshot path.
+// core.autocrlf is pinned off for checkpoint git only (via GIT_CONFIG_*, never touching the
+// user's config) so snapshot -> restore is byte-faithful: with autocrlf=true (the Windows
+// default) an LF file the agent wrote would otherwise be restored as CRLF.
 function gitEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const { PATH, HOME } = process.env;
-  return { PATH: PATH ?? "", ...(HOME ? { HOME } : {}), GIT_TERMINAL_PROMPT: "0", ...extra } as unknown as NodeJS.ProcessEnv;
+  return {
+    PATH: PATH ?? "", ...(HOME ? { HOME } : {}), GIT_TERMINAL_PROMPT: "0",
+    GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.autocrlf", GIT_CONFIG_VALUE_0: "false",
+    ...extra,
+  } as unknown as NodeJS.ProcessEnv;
 }
 
 function git(cwd: string, args: string[], env: NodeJS.ProcessEnv = gitEnv()) {

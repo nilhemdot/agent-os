@@ -82,7 +82,7 @@ export function agentEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
     HOME && path.join(HOME, ".kimi-code/bin"),
   ].filter((entry): entry is string => Boolean(entry));
   const existing = (PATH ?? "").split(path.delimiter).filter(Boolean);
-  const merged = [...new Set([...existing, ...ensurePath])].join(":");
+  const merged = [...new Set([...existing, ...ensurePath])].join(path.delimiter);
   return {
     PATH: merged,
     ...(HOME ? { HOME } : {}),
