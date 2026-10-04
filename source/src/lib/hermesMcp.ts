@@ -13,7 +13,7 @@ import { readFile, writeFile, rename } from "node:fs/promises";
 import { hermesHome } from "@/lib/config";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { run } from "@/lib/runner";
 
 // ─── Security: Description and Auth Sanitization ─────────────────────────────
