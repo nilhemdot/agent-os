@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { AGENTIC_DIR, VAULT_AVAILABLE } from "@/lib/vaultWriter";
 import { FCC_SCRATCH_ROOT, ensureProject } from "@/lib/freeClaudeWorkspace";
 
