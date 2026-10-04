@@ -33,10 +33,10 @@ jobs:
         shell: bash
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: source/.nvmrc
           cache: 'npm'
@@ -120,17 +120,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: source/.nvmrc
           cache: 'npm'
           cache-dependency-path: source/package-lock.json
 
       - name: Cache Next.js build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: source/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('source/package-lock.json') }}-${{ hashFiles('source/src/**', 'source/next.config.ts') }}
