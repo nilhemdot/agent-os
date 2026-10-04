@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readFileSync, readlinkSync, readdirSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, lstatSync, openSync, readFileSync, readlinkSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { ledgerDb } from "./ledger";
 
@@ -31,7 +31,17 @@ function files(root: string): Map<string, { sha256: string; content: string }> {
       return;
     }
     if (!stat.isFile()) return;
-    const bytes = readFileSync(full), relative = toPosix(path.relative(root, full));
+    // Read through one fd opened with O_NOFOLLOW and re-checked with fstat, so a hostile repo
+    // can't swap the file for a symlink between the lstat above and the read (TOCTOU).
+    let bytes: Buffer;
+    try {
+      const fd = openSync(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+      try {
+        if (!fstatSync(fd).isFile()) return;
+        bytes = readFileSync(fd);
+      } finally { closeSync(fd); }
+    } catch { return; } // vanished or became a symlink mid-scan; the next scan sees the new state
+    const relative = toPosix(path.relative(root, full));
     const content = bytes.length > 1_000_000 ? `${bytes.subarray(0, 1_000_000).toString("utf8")}\n...[truncated; hash covers ${bytes.length} bytes]` : bytes.toString("utf8");
     found.set(relative, { content, sha256: createHash("sha256").update(bytes).digest("hex") });
   };
