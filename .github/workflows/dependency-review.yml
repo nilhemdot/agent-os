@@ -32,7 +32,6 @@ jobs:
     timeout-minutes: 10
     # Visibility only for now: reports known advisories in the full lockfile,
     # including ones that pre-date the PR. dependency-review is the PR gate.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -42,4 +41,13 @@ jobs:
 
       - name: Audit production dependencies
         working-directory: source
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          # Report only: findings go to the job summary and a warning annotation,
+          # the step never fails. Drop the `|| ...` fallback to make this a gate.
+          if npm audit --omit=dev --audit-level=high > audit.txt; then
+            echo "npm audit: no high or critical advisories" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=npm audit::$(grep -E '^[0-9]+ vulnerabilities' audit.txt || echo 'advisories found') in production dependencies (see job summary)"
+            { echo '## npm audit (production dependencies)'; echo '```'; cat audit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cat audit.txt
