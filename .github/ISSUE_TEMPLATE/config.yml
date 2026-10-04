@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting guide
+    url: https://github.com/nilhemdot/agent-os/blob/main/install/8-TROUBLESHOOTING.md
+    about: Check the common setup problems and fixes before opening an issue.
+  - name: Report a security vulnerability
+    url: https://github.com/nilhemdot/agent-os/security/advisories/new
+    about: Please report security issues privately, not as a public issue.

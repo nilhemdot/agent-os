@@ -1,5 +1,7 @@
 # 🚀 The Agent OS — Start Here
 
+[![CI](https://github.com/nilhemdot/agent-os/actions/workflows/ci.yml/badge.svg)](https://github.com/nilhemdot/agent-os/actions/workflows/ci.yml) [![CodeQL](https://github.com/nilhemdot/agent-os/actions/workflows/codeql.yml/badge.svg)](https://github.com/nilhemdot/agent-os/actions/workflows/codeql.yml)
+
 > 📦 **This pack: version `2026-07-03` (built 3 July 2026).** To check you're on the latest, compare this against the newest pack in the AI Profit Boardroom — or just run `Update Agent OS.command`.
 >
 > 📅 **See what changed and when → [`CHANGELOG.md`](CHANGELOG.md)** — a day-by-day list of new features and fixes.

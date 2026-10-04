@@ -2,21 +2,29 @@ name: CI
 
 on:
   push:
-    branches: [main, m0-security-patch]
+    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
     # Windows non-blocking: WSL2 is the supported Windows path (Plan v3 §M8); native CRLF/worktree/srt differences tracked in backlog M8-6
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: ['22']
 
     defaults:
       run:
@@ -30,7 +38,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: source/.nvmrc
           cache: 'npm'
           cache-dependency-path: source/package-lock.json
 
@@ -45,8 +53,7 @@ jobs:
       - name: Lint
         working-directory: source
         run: npm run lint
-        continue-on-error: true
-        # non-blocking: D-series lint-debt burn-down in progress (M8.18); typecheck/test/eval are the hard gates
+        # blocking: M8.18 lint-debt burn-down reached 0 errors; warnings do not fail the step
 
       - name: Security lint - forbid child_process in app/features (R1.4)
         working-directory: source
@@ -107,3 +114,35 @@ jobs:
       - name: Run eval
         working-directory: source
         run: npm run eval
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: source/.nvmrc
+          cache: 'npm'
+          cache-dependency-path: source/package-lock.json
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: source/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('source/package-lock.json') }}-${{ hashFiles('source/src/**', 'source/next.config.ts') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('source/package-lock.json') }}-
+
+      - name: Install dependencies
+        working-directory: source
+        run: npm ci
+
+      - name: Next.js production build
+        working-directory: source
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
