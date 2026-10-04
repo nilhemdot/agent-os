@@ -23,6 +23,15 @@ updates:
         update-types: [minor, patch]
       minor-and-patch:
         update-types: [minor, patch]
+    # Majors that need a deliberate migration; minor/patch updates still flow.
+    ignore:
+      # typescript-eslint supports typescript <6.1, and 7.x is the native (Go)
+      # compiler; upgrade TypeScript by hand once typescript-eslint catches up.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # Keep Node typings on the runtime line (.nvmrc / CI: Node 22).
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
