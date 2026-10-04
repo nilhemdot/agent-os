@@ -17,7 +17,7 @@ const BIN_PATH = [
   "/usr/local/bin",
   path.join(os.homedir(), ".npm-global/bin"),
   process.env.PATH || "",
-].filter(Boolean).join(":");
+].filter(Boolean).join(path.delimiter);
 
 const ROOT = path.join(os.homedir(), ".agentic-os", "glm-code", "builds");
 

@@ -23,7 +23,7 @@ const DEPLOY_PATH = [
   process.env.PATH || "",
 ]
   .filter(Boolean)
-  .join(":");
+  .join(path.delimiter);
 
 // Build + deploy a single site to Netlify, streaming each step's output back as NDJSON events.
 //   1. npx @11ty/eleventy
