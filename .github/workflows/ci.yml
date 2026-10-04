@@ -19,8 +19,8 @@ jobs:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
-    # Windows non-blocking: WSL2 is the supported Windows path (Plan v3 §M8); native CRLF/worktree/srt differences tracked in backlog M8-6
+    # All three OSes are blocking: the native Windows failures (backlog M8-6) were fixed
+    # in nilhemdot/agent-os#25; WSL2 remains the recommended Windows path for users.
     strategy:
       fail-fast: false
       matrix:

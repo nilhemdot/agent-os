@@ -2,7 +2,7 @@
 
 ## Windows Support
 
-Native Windows is not a supported/blocking target for now. **WSL2 (Ubuntu)** is the supported path on Windows. The CI `windows-latest` leg runs informionally (non-blocking) due to CRLF/git-worktree/srt environment differences in pre-existing M3/M5/M6 integration tests, tracked in the backlog (M8-6).
+**WSL2 (Ubuntu)** remains the recommended path on Windows. The full test suite also passes natively on Windows, and the CI `windows-latest` leg is a blocking check alongside Linux and macOS. The earlier CRLF / path-separator / PATH-delimiter failures in the M3/M5/M6 suites (backlog M8-6) were fixed in nilhemdot/agent-os#25.
 
 ## Build Strategy: Next.js Standalone
 
