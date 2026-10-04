@@ -62,7 +62,7 @@ function parseLog(log: string): Ev[] {
     }
 
     // Try JSON
-    let j: unknown = null;
+    let j: unknown;
     try { j = JSON.parse(trimmed); }
     catch {
       out.push({ i, kind: "raw", text: trimmed });

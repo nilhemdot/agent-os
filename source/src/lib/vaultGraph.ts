@@ -48,7 +48,7 @@ export async function buildVaultGraph(): Promise<VaultGraph> {
 
   await Promise.all(files.map(async (abs) => {
     const rel = path.relative(VAULT_ROOT, abs);
-    let content = "";
+    let content: string;
     try { content = await readFile(abs, "utf8"); } catch { return; }
     const matches = content.matchAll(WIKILINK_RE);
     for (const m of matches) {

@@ -14,7 +14,7 @@ interface FileRec { rel: string; bytes: number }
 
 async function walk(dir: string, base: string, out: FileRec[], depth = 0): Promise<void> {
   if (depth > 4) return;
-  let items: string[] = [];
+  let items: string[];
   try { items = await readdir(dir); } catch { return; }
   for (const it of items) {
     if (it.startsWith(".") || SKIP.has(it)) continue;
@@ -27,7 +27,7 @@ async function walk(dir: string, base: string, out: FileRec[], depth = 0): Promi
 
 export async function GET() {
   if (!existsSync(ROOT)) return NextResponse.json({ builds: [] });
-  let dirs: string[] = [];
+  let dirs: string[];
   try { dirs = await readdir(ROOT); } catch { return NextResponse.json({ builds: [] }); }
 
   const builds = [];

@@ -83,7 +83,7 @@ export async function recoverOrphans(): Promise<{ recovered: number; existing: n
   if (!existsSync(HERMES_SCRATCH_ROOT)) return { recovered: 0, existing: 0 };
   const s = await readState();
   const tracked = new Set(s.goals.map((g) => g.id));
-  let dirs: string[] = [];
+  let dirs: string[];
   try { dirs = await readdir(HERMES_SCRATCH_ROOT); } catch { return { recovered: 0, existing: 0 }; }
   let recovered = 0;
   for (const name of dirs) {

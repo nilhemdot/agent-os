@@ -59,7 +59,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ path: string[] 
   }
 
   const [mode, ...rest] = segments;
-  let abs: string | null = null;
+  let abs: string | null;
   if (mode === "project") {
     const [slug, ...relParts] = rest;
     if (!slug) return new Response("missing slug", { status: 400 });

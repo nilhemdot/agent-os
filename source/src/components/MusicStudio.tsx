@@ -87,7 +87,7 @@ export default function MusicStudio() {
     if (!d || busy) return;
     setBusy(true); setNotice(""); setPreviews([]); setPhase("Sending to Suno…"); setElapsed(0);
 
-    let taskId = "";
+    let taskId: string;
     try {
       const r = await (await fetch("/api/music/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
