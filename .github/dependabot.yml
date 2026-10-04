@@ -9,13 +9,18 @@ updates:
     labels: [dependencies]
     commit-message:
       prefix: 'chore(deps)'
+    # Groups only bundle minor/patch bumps; every major bump gets its own PR
+    # so a breaking upgrade (e.g. ESLint 10) can't sink a whole group.
     groups:
       next-react:
         patterns: ['next', 'eslint-config-next', 'react', 'react-dom', '@types/react', '@types/react-dom']
+        update-types: [minor, patch]
       types:
         patterns: ['@types/*']
+        update-types: [minor, patch]
       lint:
         patterns: ['eslint', '@eslint/*', 'globals']
+        update-types: [minor, patch]
       minor-and-patch:
         update-types: [minor, patch]
 
