@@ -18,7 +18,7 @@ AgentOS uses Next.js **standalone output** (`output: 'standalone'` in next.confi
 
 ### Prerequisites
 
-- **Node.js 22.5 or later** (required for `node:sqlite` support)
+- **Node.js 22.13 or later** (22.5+ is required for `node:sqlite`; the dev toolchain, ESLint 10, needs 22.13+)
 - npm or yarn
 
 ### Build
