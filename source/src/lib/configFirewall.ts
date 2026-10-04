@@ -17,11 +17,13 @@ function files(root: string): Map<string, { sha256: string; content: string }> {
   const found = new Map<string, { sha256: string; content: string }>();
   const dirManifests = new Map<string, string>();
   const add = (full: string) => {
+    const relative = toPosix(path.relative(root, full));
+    const recordSymlink = () => {
+      const content = `SYMLINK -> ${readlinkSync(full)}`;
+      found.set(relative, { content, sha256: hash(content) });
+    };
     const stat = lstatSync(full);
-    if (stat.isSymbolicLink()) {
-      const content = `SYMLINK -> ${readlinkSync(full)}`, relative = toPosix(path.relative(root, full));
-      found.set(relative, { content, sha256: hash(content) }); return;
-    }
+    if (stat.isSymbolicLink()) { recordSymlink(); return; }
     if (stat.isDirectory()) {
       const entries = readdirSync(full);
       // ponytail: hash manifest of ALL entry names+count (not just first 200) so additions beyond 200 still trip diff
@@ -33,15 +35,22 @@ function files(root: string): Map<string, { sha256: string; content: string }> {
     if (!stat.isFile()) return;
     // Read through one fd opened with O_NOFOLLOW and re-checked with fstat, so a hostile repo
     // can't swap the file for a symlink between the lstat above and the read (TOCTOU).
+    // Fail closed: a guarded file that can't be read must never silently drop out of the scan
+    // (an unapproved file would then show no drift and the run would launch unquarantined).
+    let fd: number;
+    try {
+      fd = openSync(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") return; // vanished mid-scan: absence is compared against the baseline
+      if (code === "ELOOP" || code === "EMLINK") { recordSymlink(); return; } // swapped for a symlink
+      throw error;
+    }
     let bytes: Buffer;
     try {
-      const fd = openSync(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-      try {
-        if (!fstatSync(fd).isFile()) return;
-        bytes = readFileSync(fd);
-      } finally { closeSync(fd); }
-    } catch { return; } // vanished or became a symlink mid-scan; the next scan sees the new state
-    const relative = toPosix(path.relative(root, full));
+      if (!fstatSync(fd).isFile()) throw new Error(`config firewall: ${relative} changed type during scan`);
+      bytes = readFileSync(fd);
+    } finally { closeSync(fd); }
     const content = bytes.length > 1_000_000 ? `${bytes.subarray(0, 1_000_000).toString("utf8")}\n...[truncated; hash covers ${bytes.length} bytes]` : bytes.toString("utf8");
     found.set(relative, { content, sha256: createHash("sha256").update(bytes).digest("hex") });
   };
