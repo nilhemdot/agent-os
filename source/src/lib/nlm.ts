@@ -13,7 +13,7 @@ const BIN_PATH = [
   "/opt/homebrew/bin", "/usr/local/bin",
   path.join(os.homedir(), ".npm-global/bin"),
   process.env.PATH || "",
-].filter(Boolean).join(":");
+].filter(Boolean).join(path.delimiter);
 
 export const SHORTS_CACHE = path.join(os.homedir(), ".agentic-os", "notebooklm-shorts");
 

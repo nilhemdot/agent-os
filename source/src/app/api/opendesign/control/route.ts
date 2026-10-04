@@ -11,14 +11,14 @@ export const dynamic = "force-dynamic";
 const HOME = os.homedir();
 const START = path.join(HOME, "open-design", "od-host-start.sh");
 const STOP = path.join(HOME, "open-design", "od-host-stop.sh");
-const PATH_EXTRA = ["/opt/homebrew/bin", "/usr/local/bin", `${HOME}/.local/bin`].join(":");
+const PATH_EXTRA = ["/opt/homebrew/bin", "/usr/local/bin", `${HOME}/.local/bin`].join(path.delimiter);
 
 function sh(script: string, timeoutMs: number): Promise<{ ok: boolean; out: string }> {
   return new Promise((resolve) => {
     // R1.H2: removed shell invocation (exec → spawnSubprocessSync with array args), verify script is not attacker-controlled
     // script comes from hardcoded START/STOP paths, not user input → safe to use directly
     const result = spawnSubprocessSync("bash", [script], {
-      env: { PATH: `${PATH_EXTRA}:${process.env.PATH ?? ""}` },
+      env: { PATH: `${PATH_EXTRA}${path.delimiter}${process.env.PATH ?? ""}` },
       timeout: timeoutMs,
       encoding: "utf8",
     });
