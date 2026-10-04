@@ -27,6 +27,14 @@ function gitEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   return { PATH: PATH ?? "", ...(HOME ? { HOME } : {}), GIT_TERMINAL_PROMPT: "0", ...extra } as unknown as NodeJS.ProcessEnv;
 }
 
+// Layered onto the calls that move file CONTENT (snapshot `add`, restore `read-tree -u` /
+// `worktree add`) so snapshot -> restore is byte-faithful under core.autocrlf=true (the Windows
+// default would otherwise restore an LF file as CRLF). Read-only calls such as the dirty check
+// keep the user's settings so they agree with the user's own `git status`. Set via GIT_CONFIG_*,
+// never written to the user's config. Known limit: explicit .gitattributes eol/filter rules
+// still apply (overriding them needs git >= 2.40 and would bypass filters such as Git LFS).
+const RAW_EOL = { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.autocrlf", GIT_CONFIG_VALUE_0: "false" };
+
 function git(cwd: string, args: string[], env: NodeJS.ProcessEnv = gitEnv()) {
   return spawnSync("git", args, { cwd, env, encoding: "utf8", timeout: 30_000, maxBuffer: 128 * 1024 * 1024 });
 }
@@ -166,7 +174,7 @@ export function createCheckpoint(runId: string, cwd: string, kind: string): Chec
   try {
     const headRev = git(cwd, ["rev-parse", "HEAD"]);
     const base = okc(headRev) ? (headRev.stdout || "").trim() : null; // null on empty repo
-    const idxEnv = gitEnv({ GIT_INDEX_FILE: tmpIndex });
+    const idxEnv = gitEnv({ GIT_INDEX_FILE: tmpIndex, ...RAW_EOL });
     if (base && !okc(git(cwd, ["read-tree", "HEAD"], idxEnv))) throw new Error("read-tree HEAD failed");
     if (!okc(git(cwd, ["add", "-A"], idxEnv))) throw new Error("add -A failed");
     const writeTree = git(cwd, ["write-tree"], idxEnv);
@@ -245,7 +253,7 @@ export function retryFromCheckpoint(runId: string): VerbResult {
     return { ok: true, runId: child.id, parentRunId: runId, checkpointId: cp.id };
   }
   if (!isGitWorkspace(cwd)) return NOT_GIT;
-  if (!okc(git(cwd, ["read-tree", "-u", "--reset", cp.git_sha]))) return { ok: false, code: 409, error: "git reset to checkpoint failed" };
+  if (!okc(git(cwd, ["read-tree", "-u", "--reset", cp.git_sha], gitEnv(RAW_EOL)))) return { ok: false, code: 409, error: "git reset to checkpoint failed" };
   const child = createRun({
     agent: run.agent, objective: run.objective, workspace: cwd,
     args: safeJson<string[]>(run.args_json, []), policy: safeJson<unknown>(run.policy_json, {}), parentRunId: runId,
@@ -282,7 +290,7 @@ export function forkFromCheckpoint(runId: string, checkpointId?: string): VerbRe
     return { ok: true, runId: child.id, parentRunId: runId, path: newDir, checkpointId: cp.id };
   }
   if (!isGitWorkspace(cwd)) return NOT_GIT;
-  if (!okc(git(cwd, ["worktree", "add", "--detach", "--", newDir, cp.git_sha]))) return { ok: false, code: 409, error: "git worktree add failed" };
+  if (!okc(git(cwd, ["worktree", "add", "--detach", "--", newDir, cp.git_sha], gitEnv(RAW_EOL)))) return { ok: false, code: 409, error: "git worktree add failed" };
   const child = createRun({
     agent: run.agent, objective: run.objective, workspace: newDir,
     args: safeJson<string[]>(run.args_json, []), policy: safeJson<unknown>(run.policy_json, {}), parentRunId: runId,
@@ -331,14 +339,14 @@ export function restoreCheckpoint(
   if (!opts.inPlace) {
     const newDir = `${cwd.replace(/\/+$/, "")}-restore-${randomUUID().slice(0, 8)}`;
     if (existsSync(newDir)) return { ok: false, code: 409, error: "restore target already exists" };
-    if (!okc(git(cwd, ["worktree", "add", "--detach", "--", newDir, cp.git_sha]))) return { ok: false, code: 409, error: "git worktree add failed" };
+    if (!okc(git(cwd, ["worktree", "add", "--detach", "--", newDir, cp.git_sha], gitEnv(RAW_EOL)))) return { ok: false, code: 409, error: "git worktree add failed" };
     appendRunEvent(runId, "restored", { mode: "worktree", path: newDir, checkpointId: cp.id });
     return { ok: true, mode: "worktree", path: newDir, checkpointId: cp.id };
   }
 
   if (workspaceBusy(cwd)) return { ok: false, code: 409, error: "a running run holds this workspace" };
   if (isWorkingTreeDirty(cwd) && !opts.force) return { ok: false, code: 409, error: "working tree is dirty; pass force to overwrite", dirty: true };
-  if (!okc(git(cwd, ["read-tree", "-u", "--reset", cp.git_sha]))) return { ok: false, code: 409, error: "git reset to checkpoint failed" };
+  if (!okc(git(cwd, ["read-tree", "-u", "--reset", cp.git_sha], gitEnv(RAW_EOL)))) return { ok: false, code: 409, error: "git reset to checkpoint failed" };
   if (opts.force) git(cwd, ["clean", "-fd"]); // drop untracked files not in the snapshot
   appendRunEvent(runId, "restored", { mode: "in_place", checkpointId: cp.id });
   return { ok: true, mode: "in_place", checkpointId: cp.id };

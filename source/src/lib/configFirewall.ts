@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readFileSync, readlinkSync, readdirSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, lstatSync, openSync, readFileSync, readlinkSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { ledgerDb } from "./ledger";
 
@@ -9,16 +9,21 @@ const guarded = [
 ];
 export interface ConfigDrift { path: string; kind: "added" | "changed" | "removed"; sha256: string; content: string }
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+// Baseline/drift keys are always POSIX ("/") so a path means the same thing on every OS;
+// path.relative() yields "\\" on Windows.
+const toPosix = (p: string) => p.split(path.sep).join("/");
 
 function files(root: string): Map<string, { sha256: string; content: string }> {
   const found = new Map<string, { sha256: string; content: string }>();
   const dirManifests = new Map<string, string>();
   const add = (full: string) => {
+    const relative = toPosix(path.relative(root, full));
+    const recordSymlink = () => {
+      const content = `SYMLINK -> ${readlinkSync(full)}`;
+      found.set(relative, { content, sha256: hash(content) });
+    };
     const stat = lstatSync(full);
-    if (stat.isSymbolicLink()) {
-      const content = `SYMLINK -> ${readlinkSync(full)}`, relative = path.relative(root, full);
-      found.set(relative, { content, sha256: hash(content) }); return;
-    }
+    if (stat.isSymbolicLink()) { recordSymlink(); return; }
     if (stat.isDirectory()) {
       const entries = readdirSync(full);
       // ponytail: hash manifest of ALL entry names+count (not just first 200) so additions beyond 200 still trip diff
@@ -28,14 +33,31 @@ function files(root: string): Map<string, { sha256: string; content: string }> {
       return;
     }
     if (!stat.isFile()) return;
-    const bytes = readFileSync(full), relative = path.relative(root, full);
+    // Read through one fd opened with O_NOFOLLOW and re-checked with fstat, so a hostile repo
+    // can't swap the file for a symlink between the lstat above and the read (TOCTOU).
+    // Fail closed: a guarded file that can't be read must never silently drop out of the scan
+    // (an unapproved file would then show no drift and the run would launch unquarantined).
+    let fd: number;
+    try {
+      fd = openSync(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") return; // vanished mid-scan: absence is compared against the baseline
+      if (code === "ELOOP" || code === "EMLINK") { recordSymlink(); return; } // swapped for a symlink
+      throw error;
+    }
+    let bytes: Buffer;
+    try {
+      if (!fstatSync(fd).isFile()) throw new Error(`config firewall: ${relative} changed type during scan`);
+      bytes = readFileSync(fd);
+    } finally { closeSync(fd); }
     const content = bytes.length > 1_000_000 ? `${bytes.subarray(0, 1_000_000).toString("utf8")}\n...[truncated; hash covers ${bytes.length} bytes]` : bytes.toString("utf8");
     found.set(relative, { content, sha256: createHash("sha256").update(bytes).digest("hex") });
   };
   for (const relative of guarded) { const full = path.join(root, relative); if (existsSync(full)) add(full); }
   // Include manifest hashes in the baseline so directory changes beyond 200 entries still trip diff
   for (const [dir, manifestHash] of dirManifests) {
-    const relative = path.relative(root, dir);
+    const relative = toPosix(path.relative(root, dir));
     found.set(`${relative}/.manifest`, { content: `manifest of ${relative}`, sha256: manifestHash });
   }
   return found;
@@ -44,7 +66,7 @@ function files(root: string): Map<string, { sha256: string; content: string }> {
 export function scanWorkspaceConfig(workspace: string): ConfigDrift[] {
   const current = files(workspace), db = ledgerDb();
   const approved = new Map((db.prepare("SELECT path,sha256,content FROM workspace_config_baselines WHERE workspace=?").all(workspace) as Array<Record<string, unknown>>)
-    .map((row) => [String(row.path), { sha256: String(row.sha256), content: String(row.content) }]));
+    .map((row) => [path.sep === "\\" ? String(row.path).replaceAll("\\", "/") : String(row.path), { sha256: String(row.sha256), content: String(row.content) }]));
   const drift: ConfigDrift[] = [];
   for (const [relative, value] of current) {
     const prior = approved.get(relative);
