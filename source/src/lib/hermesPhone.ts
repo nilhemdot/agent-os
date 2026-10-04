@@ -150,7 +150,7 @@ async function elFetch(pathStr: string, init?: RequestInit): Promise<unknown> {
     signal: AbortSignal.timeout(20000),
   });
   const text = await r.text();
-  let data: unknown = null;
+  let data: unknown;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!r.ok) throw new Error(`ElevenLabs ${r.status}: ${typeof data === "string" ? data.slice(0, 200) : JSON.stringify(data).slice(0, 200)}`);
   return data;

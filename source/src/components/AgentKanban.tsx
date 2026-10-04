@@ -83,7 +83,7 @@ export default function AgentKanban() {
     setErr(null); setRunning(true);
     for (const card of queue) {
       setActive("builder"); setCard(card.id, { stage: "building", note: undefined });
-      let res: { ok?: boolean; bytes?: number; verdict?: string; note?: string; model?: string; liveUrl?: string; slug?: string } = {};
+      let res: { ok?: boolean; bytes?: number; verdict?: string; note?: string; model?: string; liveUrl?: string; slug?: string };
       try {
         const body = seoMode
           ? { id: card.id, title: card.title, brief: card.brief, goal, engine: "hermes", mode: "seo", siteId: SEO_SITE.id }

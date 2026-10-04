@@ -118,7 +118,7 @@ export async function uniqueSlug(base: string): Promise<string> {
 
 export async function listItems(): Promise<PipelineItem[]> {
   await ensureDirs();
-  let names: string[] = [];
+  let names: string[];
   try { names = await readdir(ITEMS_DIR); } catch { return []; }
   const out: PipelineItem[] = [];
   for (const n of names) {

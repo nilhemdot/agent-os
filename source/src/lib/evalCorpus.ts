@@ -106,12 +106,12 @@ export function loadCorpus(dir: string): EvalCase[] {
         cases.push(evalCase);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        throw new Error(`Failed to load case ${file}: ${msg}`);
+        throw new Error(`Failed to load case ${file}: ${msg}`, { cause: e });
       }
     }
 
     return cases;
   } catch (e: unknown) {
-    throw new Error(`loadCorpus(${dir}): ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`loadCorpus(${dir}): ${e instanceof Error ? e.message : String(e)}`, { cause: e });
   }
 }

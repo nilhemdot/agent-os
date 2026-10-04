@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       for (const agent of repliers) {
         if (req.signal.aborted) break;
         send({ t: "typing", id: agent.id, name: agent.name, color: agent.color });
-        let raw = "";
+        let raw: string;
         try { raw = await roomReply(agent, transcript, ctx.text, req.signal); }
         catch (e) { if (req.signal.aborted) break; raw = `(${agent.name} couldn't reply — ${String(e).slice(0, 80)})`; }
         if (!raw) raw = "…";

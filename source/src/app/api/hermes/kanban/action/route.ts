@@ -34,7 +34,7 @@ function boardArgs(board?: string): string[] {
 export async function POST(req: Request) {
   const b: ActionBody = await req.json();
   const board = boardArgs(b.board);
-  let args: string[] = [];
+  let args: string[];
   let timeoutMs = 20_000;
 
   switch (b.action) {

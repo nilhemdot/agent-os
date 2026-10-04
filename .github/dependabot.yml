@@ -13,13 +13,13 @@ updates:
     # so a breaking upgrade (e.g. ESLint 10) can't sink a whole group.
     groups:
       next-react:
-        patterns: ['next', 'eslint-config-next', 'react', 'react-dom', '@types/react', '@types/react-dom']
+        patterns: ['next', 'react', 'react-dom', '@types/react', '@types/react-dom']
         update-types: [minor, patch]
       types:
         patterns: ['@types/*']
         update-types: [minor, patch]
       lint:
-        patterns: ['eslint', '@eslint/*', 'globals']
+        patterns: ['eslint', '@eslint/*', 'eslint-plugin-*', 'typescript-eslint', 'globals']
         update-types: [minor, patch]
       minor-and-patch:
         update-types: [minor, patch]

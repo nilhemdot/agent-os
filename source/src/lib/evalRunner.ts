@@ -28,7 +28,8 @@ function runCaseFixture(evalCase: EvalCase): EvalRunMetrics {
     fixtureContent = JSON.parse(content);
   } catch (e: unknown) {
     throw new Error(
-      `Case ${evalCase.id}: failed to load fixture ${evalCase.fixture}: ${e instanceof Error ? e.message : String(e)}`
+      `Case ${evalCase.id}: failed to load fixture ${evalCase.fixture}: ${e instanceof Error ? e.message : String(e)}`,
+      { cause: e }
     );
   }
 

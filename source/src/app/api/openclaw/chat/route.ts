@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 
   // Try to parse JSON payload from stdout (may include leading non-JSON log lines)
   let text = "";
-  let json: unknown = null;
+  let json: unknown;
   const firstBrace = out.stdout.indexOf("{");
   if (firstBrace !== -1) {
     try {

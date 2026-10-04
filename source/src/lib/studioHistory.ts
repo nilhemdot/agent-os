@@ -80,7 +80,7 @@ export async function saveSearch(rec: Omit<SearchRecord, "id">): Promise<SearchR
 
 export async function listSearches(maxItems = 80): Promise<SearchRecord[]> {
   if (!existsSync(SEARCHES_DIR)) return [];
-  let entries: string[] = [];
+  let entries: string[];
   try { entries = await readdir(SEARCHES_DIR); } catch { return []; }
   const records: SearchRecord[] = [];
   for (const name of entries) {
@@ -142,7 +142,7 @@ export async function saveTalk(rec: TalkRecord): Promise<void> {
 
 export async function listTalks(maxItems = 60): Promise<TalkRecord[]> {
   if (!existsSync(TALKS_DIR)) return [];
-  let entries: string[] = [];
+  let entries: string[];
   try { entries = await readdir(TALKS_DIR); } catch { return []; }
   const records: TalkRecord[] = [];
   for (const name of entries) {

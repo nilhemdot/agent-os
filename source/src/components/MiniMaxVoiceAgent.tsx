@@ -156,7 +156,7 @@ export default function MiniMaxVoiceAgent({ accent = "#60a5fa" }: { accent?: str
     chunksRef.current = [];
     if (blob.size < 1400) { if (activeRef.current) beginListen(); else setStageS("idle"); return; }
     setStageS("transcribing");
-    let text = "";
+    let text: string;
     try {
       const fd = new FormData();
       const ext = type.includes("mp4") ? "mp4" : type.includes("ogg") ? "ogg" : "webm";
