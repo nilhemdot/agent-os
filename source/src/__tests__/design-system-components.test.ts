@@ -6,6 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import Divider from "@/components/Divider";
 import SidebarItem, { SidebarSection } from "@/components/SidebarItem";
 import { StatusMeta } from "@/components/StatusRow";
+import CopyButton from "@/components/CopyButton";
 
 // These components replace inline class markup in TopBar, Overview and
 // Sidebar. The markup is what globals.css styles, so pin it down exactly.
@@ -53,5 +54,9 @@ describe("design-system components", () => {
     expect(idle).not.toContain("w-[2px]");
     expect(idle).toContain('style="color:var(--cream-dim)"');
     expect(idle).toContain("Pipeline</span>");
+  });
+
+  it("CopyButton is a plain button, so it never submits a surrounding form", () => {
+    expect(html(h(CopyButton, { children: "Copy" }))).toBe('<button type="button" class="copy-btn">Copy</button>');
   });
 });
