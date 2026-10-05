@@ -7,6 +7,7 @@ import Divider from "@/components/Divider";
 import SidebarItem, { SidebarSection } from "@/components/SidebarItem";
 import { StatusMeta } from "@/components/StatusRow";
 import CopyButton from "@/components/CopyButton";
+import ProgressBar from "@/components/ProgressBar";
 
 // These components replace inline class markup in TopBar, Overview and
 // Sidebar. The markup is what globals.css styles, so pin it down exactly.
@@ -58,5 +59,17 @@ describe("design-system components", () => {
 
   it("CopyButton is a plain button, so it never submits a surrounding form", () => {
     expect(html(h(CopyButton, { children: "Copy" }))).toBe('<button type="button" class="copy-btn">Copy</button>');
+  });
+
+  it("ProgressBar clamps to 0–100 and treats non-finite values as 0", () => {
+    expect(html(h(ProgressBar, { value: 68 }))).toContain('style="width:68%"');
+    expect(html(h(ProgressBar, { value: 140 }))).toContain('style="width:100%"');
+    expect(html(h(ProgressBar, { value: -5 }))).toContain('style="width:0%"');
+    for (const value of [NaN, Infinity, -Infinity]) {
+      const out = html(h(ProgressBar, { value }));
+      expect(out).toContain('style="width:0%"');
+      expect(out).toContain(">0%</span>");
+      expect(out).not.toContain("NaN");
+    }
   });
 });
