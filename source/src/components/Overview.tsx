@@ -9,6 +9,8 @@ import AgentAvatar from "./AgentAvatar";
 import Vitals from "./Vitals";
 import TokenUsage from "./TokenUsage";
 import ActivityStream from "./ActivityStream";
+import Divider from "./Divider";
+import Eyebrow from "./Eyebrow";
 import { usePollWhileVisible } from "@/lib/usePollWhileVisible";
 
 interface VitalsData {
@@ -41,18 +43,10 @@ export default function Overview() {
     <div className="space-y-10">
       <Vitals />
 
-      <div className="divider">
-        <span className="rule" />
-        <span className="ornament">✦</span>
-        <span className="rule" />
-      </div>
+      <Divider />
 
       <section>
-        <div className="eyebrow mb-5">
-          <span className="num">II.</span>
-          <span className="line" />
-          <span className="label">Agents · click to open control room</span>
-        </div>
+        <Eyebrow className="mb-5" numeral="II." label="Agents · click to open control room" />
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <AgentPortal
             href="/claude"
@@ -93,33 +87,17 @@ export default function Overview() {
         </div>
       </section>
 
-      <div className="divider">
-        <span className="rule" />
-        <span className="ornament">✦</span>
-        <span className="rule" />
-      </div>
+      <Divider />
 
       <section>
-        <div className="eyebrow mb-5">
-          <span className="num">III.</span>
-          <span className="line" />
-          <span className="label">Token usage · what each agent is burning</span>
-        </div>
+        <Eyebrow className="mb-5" numeral="III." label="Token usage · what each agent is burning" />
         <TokenUsage />
       </section>
 
-      <div className="divider">
-        <span className="rule" />
-        <span className="ornament">✦</span>
-        <span className="rule" />
-      </div>
+      <Divider />
 
       <section>
-        <div className="eyebrow mb-5">
-          <span className="num">IV.</span>
-          <span className="line" />
-          <span className="label">Self · grounded in your Obsidian vault</span>
-        </div>
+        <Eyebrow className="mb-5" numeral="IV." label="Self · grounded in your Obsidian vault" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SelfCard
             href="/goals"
@@ -148,18 +126,10 @@ export default function Overview() {
         </div>
       </section>
 
-      <div className="divider">
-        <span className="rule" />
-        <span className="ornament">✦</span>
-        <span className="rule" />
-      </div>
+      <Divider />
 
       <section>
-        <div className="eyebrow mb-5">
-          <span className="num">V.</span>
-          <span className="line" />
-          <span className="label">Live activity · combined log stream</span>
-        </div>
+        <Eyebrow className="mb-5" numeral="V." label="Live activity · combined log stream" />
         <ActivityStream />
       </section>
     </div>

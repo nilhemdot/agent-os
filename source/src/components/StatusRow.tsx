@@ -6,8 +6,8 @@ export function StatusPill({ children }: { children: ReactNode }) {
   return <span className="status-pill">{children}</span>;
 }
 
-export function StatusMeta({ children }: { children: ReactNode }) {
-  return <span className="status-meta">{children}</span>;
+export function StatusMeta({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <span className={`status-meta ${className}`.trim()}>{children}</span>;
 }
 
 export function StatusDot({ status }: { status: Status }) {
