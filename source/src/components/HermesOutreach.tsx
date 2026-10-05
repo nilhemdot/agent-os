@@ -62,7 +62,7 @@ const SIZE_META: Record<string, { label: string; color: string }> = {
   small: { label: "Small", color: EMERALD },
   mid: { label: "Mid", color: GOLD },
   large: { label: "Too big", color: PLUM },
-  unknown: { label: "Unsized", color: "#6e6353" },
+  unknown: { label: "Unsized", color: "#938570" },
 };
 
 function Chip({ label, color }: { label: string; color?: string }) {
