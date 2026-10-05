@@ -6,6 +6,7 @@ import { LayoutGrid, Brain, Sparkles as SparklesIcon, TrendingUp, Columns3, Note
 import { useState, useEffect, type ReactNode } from "react";
 import AgentAvatar from "./AgentAvatar";
 import SidebarItem, { SidebarSection } from "./SidebarItem";
+import { isActiveRoute } from "@/lib/navActive";
 
 interface NavItem {
   href: string;
@@ -161,7 +162,7 @@ export default function Sidebar() {
           // The top "Workspace" header already labels the first group — don't repeat it.
           if (i === 0 && sectionLabel === "Workspace") sectionLabel = undefined;
 
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active = isActiveRoute(pathname, href);
           const isHidden = hidden.includes(href);
           const isOver = overHref === href && dragHref !== href;
 
@@ -235,7 +236,7 @@ export function MobileNav() {
   return (
     <nav className="md:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 panel panel-hot px-2 py-1.5 flex gap-1">
       {items.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        const active = isActiveRoute(pathname, item.href);
         return (
           <Link
             key={item.href}

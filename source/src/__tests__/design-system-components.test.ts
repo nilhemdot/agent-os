@@ -8,6 +8,7 @@ import SidebarItem, { SidebarSection } from "@/components/SidebarItem";
 import { StatusMeta } from "@/components/StatusRow";
 import CopyButton from "@/components/CopyButton";
 import ProgressBar from "@/components/ProgressBar";
+import { isActiveRoute } from "@/lib/navActive";
 
 // These components replace inline class markup in TopBar, Overview and
 // Sidebar. The markup is what globals.css styles, so pin it down exactly.
@@ -76,5 +77,15 @@ describe("design-system components", () => {
       expect(out).toContain(">0%</span>");
       expect(out).not.toContain("NaN");
     }
+  });
+
+  it("isActiveRoute matches whole path segments only, so one sidebar link is current per page", () => {
+    expect(isActiveRoute("/", "/")).toBe(true);
+    expect(isActiveRoute("/claude", "/")).toBe(false);
+    expect(isActiveRoute("/glm", "/glm")).toBe(true);
+    expect(isActiveRoute("/glm-code", "/glm")).toBe(false);
+    expect(isActiveRoute("/glm-code", "/glm-code")).toBe(true);
+    expect(isActiveRoute("/seo-guide", "/seo")).toBe(false);
+    expect(isActiveRoute("/hermes/sessions/42", "/hermes")).toBe(true);
   });
 });
