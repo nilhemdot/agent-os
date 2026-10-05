@@ -21,6 +21,7 @@ export default function SidebarItem({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={`sidebar-item relative group flex items-center gap-3 py-2.5 px-5 ${active ? "active" : ""}`}
     >
       {active && (

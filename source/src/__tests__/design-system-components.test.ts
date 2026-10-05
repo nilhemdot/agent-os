@@ -46,13 +46,18 @@ describe("design-system components", () => {
 
   it("SidebarItem links to href, marks the active row and draws the indicator only when active", () => {
     const active = html(h(SidebarItem, { href: "/claude", label: "Claude", active: true }));
-    expect(active).toMatch(/^<a class="sidebar-item relative group flex items-center gap-3 py-2.5 px-5 active" href="\/claude">/);
+    const activeTag = active.slice(0, active.indexOf(">") + 1);
+    expect(activeTag).toMatch(/^<a /);
+    expect(activeTag).toContain('class="sidebar-item relative group flex items-center gap-3 py-2.5 px-5 active"');
+    expect(activeTag).toContain('href="/claude"');
+    expect(activeTag).toContain('aria-current="page"');
     expect(active).toContain("w-[2px] h-[22px]");
     expect(active).toContain('style="color:var(--gold)"');
 
     const idle = html(h(SidebarItem, { href: "/pipeline", label: "Pipeline" }));
     expect(idle).not.toContain(" active\"");
     expect(idle).not.toContain("w-[2px]");
+    expect(idle).not.toContain("aria-current");
     expect(idle).toContain('style="color:var(--cream-dim)"');
     expect(idle).toContain("Pipeline</span>");
   });
