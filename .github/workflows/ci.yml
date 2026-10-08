@@ -146,3 +146,32 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+
+  security-evidence:
+    name: Security evidence (SBOM + audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Evidence only: dependency-review.yml gates PRs and codeql.yml uploads SARIF to code scanning.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: source/.nvmrc
+
+      - name: Generate CycloneDX SBOM and npm audit report
+        working-directory: source
+        run: |
+          mkdir -p ../security-evidence
+          npm sbom --sbom-format cyclonedx --package-lock-only --omit dev > ../security-evidence/sbom.cdx.json
+          # npm audit exits non-zero when it finds anything; keep the report, don't fail the job
+          npm audit --json --package-lock-only > ../security-evidence/npm-audit.json || true
+          node -e "const v=require('../security-evidence/npm-audit.json').metadata.vulnerabilities; console.log('npm audit:', JSON.stringify(v))" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload security evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-evidence-${{ github.sha }}
+          path: security-evidence/
+          retention-days: 90
