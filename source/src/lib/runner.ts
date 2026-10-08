@@ -451,8 +451,11 @@ export function captureGitDiff(runId: string, cwd: string, redactions: string[])
     const files = parseChangedFiles(status.stdout || "");
     if (!files.length) { appendRunEvent(runId, "diff_captured", { files: 0 }); return; }
 
-    const unstaged = gitRun(["diff", "--no-color"], cwd);
-    const staged = gitRun(["diff", "--cached", "--no-color"], cwd);
+    // Pin a/ b/ headers and skip external diff tools: parseDiffByFile keys on " b/", and user
+    // config (diff.mnemonicPrefix, diff.noprefix, diff.external) would otherwise null every body.
+    const diffArgs = ["--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"];
+    const unstaged = gitRun(["diff", ...diffArgs], cwd);
+    const staged = gitRun(["diff", "--cached", ...diffArgs], cwd);
     if ((unstaged.error || unstaged.status !== 0) && (staged.error || staged.status !== 0)) {
       appendRunEvent(runId, "diff_capture_unavailable", { reason: "git diff failed" });
       return;
