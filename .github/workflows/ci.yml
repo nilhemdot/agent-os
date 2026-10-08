@@ -167,7 +167,8 @@ jobs:
           npm sbom --sbom-format cyclonedx --package-lock-only --omit dev > ../security-evidence/sbom.cdx.json
           # npm audit exits non-zero when it finds anything; keep the report, don't fail the job
           npm audit --json --package-lock-only > ../security-evidence/npm-audit.json || true
-          node -e "const v=require('../security-evidence/npm-audit.json').metadata.vulnerabilities; console.log('npm audit:', JSON.stringify(v))" | tee -a "$GITHUB_STEP_SUMMARY"
+          # A registry/network failure yields {"error": ...} with no metadata; report it instead of crashing before the upload
+          node -e "let a; try { a = require('../security-evidence/npm-audit.json'); } catch (e) { a = { error: String(e) }; } console.log('npm audit:', JSON.stringify(a.metadata?.vulnerabilities ?? { error: a.error ?? 'no metadata in report' }))" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload security evidence
         uses: actions/upload-artifact@v4
