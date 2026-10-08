@@ -26,6 +26,8 @@ function initRepo(): string {
   git(ws, ["init", "-q"]);
   git(ws, ["config", "user.email", "t@t.dev"]);
   git(ws, ["config", "user.name", "tester"]);
+  // Hostile-but-common user config: i/ w/ headers instead of a/ b/. Capture must not depend on it.
+  git(ws, ["config", "diff.mnemonicPrefix", "true"]);
   writeFileSync(path.join(ws, "committed.txt"), "line1\nline2\n");
   git(ws, ["add", "."]);
   git(ws, ["commit", "-q", "-m", "init"]);
