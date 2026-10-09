@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import { LayoutGrid, Brain, Sparkles as SparklesIcon, TrendingUp, Columns3, NotebookText, Film, Building2, Workflow, MessagesSquare, Image as ImageIcon, Gamepad2, Music2, Network, Clapperboard, Repeat, Cpu, LayoutDashboard, Palette, GripVertical, Eye, EyeOff, SlidersHorizontal, Check, SquareTerminal } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import AgentAvatar from "./AgentAvatar";
+import SidebarItem, { SidebarSection } from "./SidebarItem";
+import { isActiveRoute } from "@/lib/navActive";
 
 interface NavItem {
   href: string;
@@ -161,16 +162,14 @@ export default function Sidebar() {
           // The top "Workspace" header already labels the first group — don't repeat it.
           if (i === 0 && sectionLabel === "Workspace") sectionLabel = undefined;
 
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active = isActiveRoute(pathname, href);
           const isHidden = hidden.includes(href);
           const isOver = overHref === href && dragHref !== href;
 
           return (
             <div key={href}>
               {sectionLabel && (
-                <div className="sidebar-section-label mt-5 mb-1.5 px-5">
-                  {sectionLabel}
-                </div>
+                <SidebarSection>{sectionLabel}</SidebarSection>
               )}
 
               {customize ? (
@@ -203,26 +202,7 @@ export default function Sidebar() {
                   </button>
                 </div>
               ) : (
-                <Link
-                  href={href}
-                  className={`sidebar-item relative group flex items-center gap-3 py-2.5 px-5 ${active ? "active" : ""}`}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="nav-indicator"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-[22px]"
-                      style={{ background: "var(--gold)", boxShadow: "0 0 10px var(--gold)" }}
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span
-                    className="shrink-0 grid place-items-center w-7 h-7 rounded-md transition"
-                    style={{ color: active ? "var(--gold)" : "var(--cream-dim)" }}
-                  >
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </Link>
+                <SidebarItem href={href} icon={item.icon} label={item.label} active={active} />
               )}
             </div>
           );
@@ -256,7 +236,7 @@ export function MobileNav() {
   return (
     <nav className="md:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 panel panel-hot px-2 py-1.5 flex gap-1">
       {items.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        const active = isActiveRoute(pathname, item.href);
         return (
           <Link
             key={item.href}

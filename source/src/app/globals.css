@@ -16,7 +16,7 @@
   --cream:      #f3ebda;
   --cream-soft: #ddd0bb;
   --cream-dim:  #a59783;
-  --cream-mute: #6e6353;
+  --cream-mute: #938570;
 
   --gold:       #d4a574;
   --gold-soft:  #e6c69a;
@@ -255,6 +255,9 @@ h1 em, h2 em, h3 em, h4 em, h5 em, h6 em,
   color: var(--cream-mute);
 }
 .action-tag.up-next { color: var(--gold); }
+/* cream-mute is 4.1:1 on the bg-elev hover fill; lift resting tags to cream-dim (5.2:1) on hover */
+.action-card:hover .action-tag:not(.up-next),
+.surface-card:hover .action-tag:not(.up-next) { color: var(--cream-dim); }
 .action-title {
   font-family: 'Bricolage Grotesque', sans-serif;
   font-weight: 500; font-size: 1.25rem;

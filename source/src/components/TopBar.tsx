@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import CommandPalette from "./CommandPalette";
+import PageHeader from "./PageHeader";
+import { StatusMeta } from "./StatusRow";
 
 interface PageMeta { numeral: string; label: string; title: string; sub: string; }
 
@@ -64,21 +66,14 @@ export default function TopBar() {
         transition={{ duration: 0.35 }}
         className="min-w-0"
       >
-        {/* Chapter eyebrow — `I. ───── MISSION CONTROL` */}
-        <div className="eyebrow">
-          <span className="num">{t.numeral}</span>
-          <span className="line" />
-          <span className="label">{t.label}</span>
-        </div>
+        {/* Chapter eyebrow — `I. ───── MISSION CONTROL` — then title and subtitle */}
+        <PageHeader numeral={t.numeral} label={t.label} title={t.title} sub={t.sub} />
 
-        <h1 className="page-title">{t.title}</h1>
-        <p className="page-subtitle">{t.sub}</p>
-
-        <div className="mt-4 status-meta">
+        <StatusMeta className="block mt-4">
           <span className="hand">{time}</span>
           <span className="mx-2 opacity-40">·</span>
           Local · Studio
-        </div>
+        </StatusMeta>
       </motion.div>
 
       <div className="flex items-center gap-3 pt-2 shrink-0">

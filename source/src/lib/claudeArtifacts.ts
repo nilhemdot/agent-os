@@ -117,7 +117,7 @@ function galleryHtml(items: PublishedItem[]): string {
   <h1>Shared Artifacts</h1>
   <p class="sub">Built with Agent OS · ${items.length} published</p>
   <div class="grid">
-${cards || '<p style="color:#6e6353">Nothing published yet.</p>'}
+${cards || '<p style="color:#938570">Nothing published yet.</p>'}
   </div>
 </div></body></html>`;
 }
