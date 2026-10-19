@@ -17,16 +17,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/js-yaml": "^4.0.9",
     "cmdk": "^1.1.1",
     "framer-motion": "^13.4.6",
     "highlight.js": "^11.12.0",
-    "js-yaml": "^5.4.2",
-    "lucide-react": "^1.49.0",
-    "next": "16.3.8",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "js-yaml": "^5.5.0",
+    "lucide-react": "^1.58.0",
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-force-graph-3d": "^1.29.2",
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
@@ -41,13 +41,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
-    "eslint": "^10.12.0",
+    "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.12.0",
+    "globals": "^17.13.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
-    "typescript-eslint": "^8.71.0",
-    "vitest": "^5.0.3"
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
   }
 }
